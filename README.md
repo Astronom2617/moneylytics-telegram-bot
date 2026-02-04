@@ -34,11 +34,22 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Create `.env` file in the root directory:
-```env
+4. Create environment file from example:  
+
+Copy `.env.example` and rename it to `.env`:  
+
+### ***Linux/MacOS***
+```bash
+cp .env.example .env 
+```
+### ***Windows (PowerShell)***
+```bash
+copy .env.example .env
+```
+Then open .env and add your Telegram bot token:
+```bash
 BOT_TOKEN=your_telegram_bot_token_here
 ```
-
 5. Run the bot:
 ```bash
 python main.py
