@@ -4,7 +4,8 @@ A Telegram bot for personal expense tracking with automatic financial analytics 
 
 ## 📋 Description
 
-Moneylytics Bot helps you track your daily expenses directly in Telegram. Simply send a message with the amount, category, and description, and the bot will save it to the database. Get daily and weekly reports, view spending by categories, and set budget limits.
+Moneylytics Bot helps you track your daily expenses directly in Telegram. Simply send a message with the amount, category, and description, and the bot will save it to the database. Get daily and weekly reports, view spending by categories, and set budget limits. Users can select their preferred currency, and all reports display the corresponding currency symbol automatically.
+
 
 ## 🚀 Tech Stack
 
@@ -61,7 +62,8 @@ python main.py
 
 - `/start` - Register in the bot and get welcome message
 - `/today` - Get daily expense report with category breakdown
-- `/week` - Get weekly expense report (coming soon)
+- `/week` - Get weekly expense report with category breakdown
+- `/setcurrency` - Set preferred currency
 - `/categories` - View spending distribution by categories with charts (coming soon)
 
 ### Adding Expenses
@@ -107,6 +109,7 @@ moneylytics-bot/
 - `created_at` - Registration timestamp
 - `daily_budget` - Daily spending limit (optional)
 - `weekly_budget` - Weekly spending limit (optional)
+- `currency` - User preferred currency (EUR/USD/UAH/GBP etc.)
 
 ### Expenses Table
 - `id` - Auto-increment primary key
@@ -121,7 +124,7 @@ moneylytics-bot/
 - [x] User registration
 - [x] Expense tracking
 - [x] Daily reports
-- [ ] Weekly reports
+- [x] Weekly reports
 - [ ] Category-based analytics with charts
 - [ ] Budget management (set limits, notifications)
 - [ ] Edit/delete expenses
