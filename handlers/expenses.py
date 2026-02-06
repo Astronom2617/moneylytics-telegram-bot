@@ -29,4 +29,4 @@ async def add_expenses(message: Message):
                             description=description)
         session.add(new_expense)
         session.commit()
-        await message.answer(f"{html.bold(message.from_user.full_name)},  your expense has been saved!")
+        await message.answer(f"{html.bold(message.from_user.full_name)}, your expense has been saved!")
