@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from handlers.start import router
 from handlers.reports import router as reports_router
 from handlers.expenses import router as expenses_router
+from handlers.budget import router as budget_router
 
 from databases import init_db
 
@@ -26,6 +27,7 @@ async def main() -> None:
     init_db()
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp.include_router(router)
+    dp.include_router(budget_router)
     dp.include_router(reports_router)
     dp.include_router(expenses_router)
     await dp.start_polling(bot)

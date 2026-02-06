@@ -1,8 +1,9 @@
-from aiogram import Router, html
+from aiogram import Router, html, F
 from aiogram.enums import Currency
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 from databases import get_session, User
+from utils.keyboards import get_main_menu
 
 # CURRENCY DICT
 CURRENCY_MAP = {
@@ -47,7 +48,10 @@ async def command_start_handler(message: Message) -> None:
                             )
             session.add(new_user)
             session.commit()
-    await message.answer(f"Hello, {html.bold(message.from_user.full_name)}!")
+    await message.answer(
+        f"Hello, {html.bold(message.from_user.full_name)}!",
+        reply_markup=get_main_menu()
+    )
 
 # Set currency
 @router.message(Command("setcurrency"))
@@ -79,6 +83,7 @@ async def command_set_currency_handler(message: Message):
 
 # Help
 @router.message(Command("help"))
+@router.message(F.text == "ℹ️ Help")
 async def command_help_handler(message: Message):
     text = f"""
     {html.bold('📖 How to use Moneylytics Bot')}
@@ -105,4 +110,9 @@ async def command_help_handler(message: Message):
     {html.bold('Categories examples:')}
     food, transport, healthcare, entertainment, shopping, bills, coffee, education, gym, other"""
     await message.answer(text)
+
+# Settings
+@router.message(F.text == "⚙️ Settings")
+async def button_settings(message: Message):
+    await message.answer("⚙️ Settings menu is under development 🚧")
 
