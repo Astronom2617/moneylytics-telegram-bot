@@ -1,4 +1,4 @@
-from aiogram import Router, html
+from aiogram import Router, html, F
 from aiogram.filters import Command
 from aiogram.types import Message
 from collections import defaultdict
@@ -11,6 +11,7 @@ from handlers.start import CURRENCY_SYMBOLS
 router = Router()
 
 @router.message(Command("today"))
+@router.message(F.text == "📊 Today")
 async def daily_report(message: Message):
     today_start = datetime.combine(datetime.now(), time.min)
     today_end = datetime.combine(datetime.now(), time.max)
@@ -50,6 +51,7 @@ async def daily_report(message: Message):
 
 
 @router.message(Command("week"))
+@router.message(F.text == "📅 Week")
 async def weekly_report(message: Message):
     week_start = datetime.now() - timedelta(weeks=1)
     week_end =  datetime.now()
@@ -88,6 +90,7 @@ async def weekly_report(message: Message):
 
         await message.answer(report_week)
 
-@router.message(Command("category"))
-async def category_report(message: Message):
-    pass
+@router.message(Command("/categories"))
+@router.message(F.text == "📈 Categories")
+async def button_categories(message: Message):
+    await message.answer("📈 Categories report is under development 🚧")
