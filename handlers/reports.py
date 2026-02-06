@@ -3,8 +3,10 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from collections import defaultdict
 
-from databases import get_session, Expense
+from databases import get_session, Expense, User
 from datetime import datetime, time, timedelta
+
+from handlers.start import CURRENCY_SYMBOLS
 
 router = Router()
 
@@ -14,6 +16,11 @@ async def daily_report(message: Message):
     today_end = datetime.combine(datetime.now(), time.max)
 
     with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+
+        currency = user.currency if user and user.currency else "EUR"
+        currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
+
         expenses = session.query(Expense).filter(
             Expense.user_id == message.from_user.id,
             Expense.created_at >= today_start,
@@ -33,10 +40,10 @@ async def daily_report(message: Message):
         report_today = html.bold("📊 Today's report:\n\n")
 
         for category, total in categories_d.items():
-            report_today += html.bold(f"💰 {category.capitalize()}: {total:.2f}€\n")
+            report_today += html.bold(f"💰 {category.capitalize()}: {total:.2f} {currency_symbol}\n")
 
         report_today += "\n━━━━━━━━━━━━━━━\n"
-        report_today += html.bold(f"Total: {sum_expenses:.2f}€")
+        report_today += html.bold(f"Total: {sum_expenses:.2f} {currency_symbol}")
 
         await message.answer(report_today)
 
@@ -50,6 +57,11 @@ async def weekly_report(message: Message):
     end_date = week_end.strftime("%d.%m")
 
     with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+
+        currency = user.currency if user and user.currency else "EUR"
+        currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
+
         expenses = session.query(Expense).filter(
             Expense.user_id == message.from_user.id,
             Expense.created_at >= week_start,
@@ -69,10 +81,10 @@ async def weekly_report(message: Message):
         report_week = html.bold(f"📊 Weekly report ({start_date} - {end_date}):\n\n")
 
         for category, total in categories_w.items():
-            report_week += html.bold(f"💰 {category.capitalize()}: {total:.2f}€\n")
+            report_week += html.bold(f"💰 {category.capitalize()}: {total:.2f} {currency_symbol}\n")
 
         report_week += "\n━━━━━━━━━━━━━━━\n"
-        report_week += html.bold(f"Total: {sum_expenses:.2f}€")
+        report_week += html.bold(f"Total: {sum_expenses:.2f} {currency_symbol}")
 
         await message.answer(report_week)
 
