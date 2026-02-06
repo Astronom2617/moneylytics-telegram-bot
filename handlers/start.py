@@ -1,7 +1,37 @@
 from aiogram import Router, html
+from aiogram.enums import Currency
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 from databases import get_session, User
+
+# CURRENCY DICT
+CURRENCY_MAP = {
+    "EUR": "EUR",
+    "EURO": "EUR",
+    "€": "EUR",
+
+    "USD": "USD",
+    "DOLLAR": "USD",
+    "AMERICAN DOLLAR": "USD",
+    "$": "USD",
+
+    "UAH": "UAH",
+    "HRYVNIA": "UAH",
+    "UKRAINIAN HRYVNIA": "UAH",
+    "₴": "UAH",
+
+    "GBP": "GBP",
+    "BRITISH POUND": "GBP",
+    "POUND": "GBP",
+    "£": "GBP",
+}
+
+CURRENCY_SYMBOLS = {
+    "EUR": "€",
+    "USD": "$",
+    "UAH": "₴",
+    "GBP": "£",
+}
 
 router = Router()
 
@@ -18,6 +48,34 @@ async def command_start_handler(message: Message) -> None:
             session.add(new_user)
             session.commit()
     await message.answer(f"Hello, {html.bold(message.from_user.full_name)}!")
+
+# Set currency
+@router.message(Command("setcurrency"))
+async def command_set_currency_handler(message: Message):
+    parts = message.text.split()
+
+    if len(parts) < 2:
+        await message.answer("Usage: /setcurrency EUR")
+        return
+
+    user_input = parts[1].upper()
+
+    user_currency = CURRENCY_MAP.get(user_input)
+
+    if not user_currency:
+        await message.answer("Unknown currency! Supported: EUR, USD, UAH, GBP")
+        return
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+
+        if user:
+            user.currency = user_currency
+            session.commit()
+
+            await message.answer(f"Successfully set {user_currency} currency!")
+        else:
+            await message.answer(f"User not found! Use /start first!")
 
 # Help
 @router.message(Command("help"))
