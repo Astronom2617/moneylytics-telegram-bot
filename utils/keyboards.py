@@ -14,11 +14,29 @@ def get_main_menu() -> ReplyKeyboardMarkup:
     return main_menu
 
 def get_settings_keyboard() -> InlineKeyboardMarkup:
-    """Меню настроек"""
-    # твой код здесь
-    pass
+    settings_menu = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text = 'Choose your currency 💲', callback_data='set:cur'),
+            ],
+            [
+                InlineKeyboardButton(text = 'Choose your language 🌐', callback_data='set:lang'),
+            ]
+        ]
+    )
+    return settings_menu
 
 def get_currency_keyboard() -> InlineKeyboardMarkup:
-    """Выбор валюты"""
-    # твой код здесь
-    pass
+    currency_menu = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='EUR €', callback_data='currency_EUR'),
+                InlineKeyboardButton(text='USD $', callback_data='currency_USD'),
+            ],
+            [
+                InlineKeyboardButton(text='UAH ₴', callback_data='currency_UAH'),
+                InlineKeyboardButton(text='GBP $', callback_data='currency_GBP'),
+            ]
+        ]
+    )
+    return currency_menu
