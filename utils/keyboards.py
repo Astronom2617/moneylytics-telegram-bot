@@ -1,6 +1,6 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
-
+# Main Menu
 def get_main_menu() -> ReplyKeyboardMarkup:
     main_menu = ReplyKeyboardMarkup(
         keyboard=[
@@ -13,6 +13,7 @@ def get_main_menu() -> ReplyKeyboardMarkup:
     )
     return main_menu
 
+# Settings Buttons
 def get_settings_keyboard() -> InlineKeyboardMarkup:
     settings_menu = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -26,6 +27,7 @@ def get_settings_keyboard() -> InlineKeyboardMarkup:
     )
     return settings_menu
 
+# Currency Buttons
 def get_currency_keyboard() -> InlineKeyboardMarkup:
     currency_menu = InlineKeyboardMarkup(
         inline_keyboard=[
