@@ -1,9 +1,11 @@
 from aiogram import Router, html, F
 from aiogram.enums import Currency
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup
+from sqlalchemy.sql.functions import now
+
 from databases import get_session, User
-from utils.keyboards import get_main_menu
+from utils.keyboards import get_main_menu, get_currency_keyboard, get_settings_keyboard
 
 # CURRENCY DICT
 CURRENCY_MAP = {
@@ -36,22 +38,79 @@ CURRENCY_SYMBOLS = {
 
 router = Router()
 
+async def start_onboarding(message: Message):
+    await message.answer(
+        f"Hello, {message.from_user.first_name}! 👋\n\n"
+        "Welcome to MoneyLyticsBot!\n"
+        "Let's set up your account."
+    )
+
+    await message.answer(
+        "Please choose your currency.",
+        reply_markup=get_currency_keyboard()
+    )
+
+@router.callback_query(F.data.startswith("set:"))
+async def process_settings_selection(callback: CallbackQuery):
+    settings = callback.data.split(":")[1]
+    if settings == "cur":
+        await callback.message.edit_text(
+            "Choose your currency.",
+            reply_markup=get_currency_keyboard()
+        )
+    elif settings == "lang":
+        await callback.message.edit_text("Language is under development 🚧")
+    else:
+        await callback.message.edit_text("Unknown setting")
+
+@router.callback_query(F.data.startswith("currency_"))
+async def process_currency_selection(callback: CallbackQuery):
+    currency = callback.data.split("_")[1]
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        was_empty = (user is None) or (user.currency is None) or (user.currency == "")
+        if user is None:
+            new_user = User(
+                id=callback.from_user.id,
+                username=callback.from_user.username,
+                first_name=callback.from_user.first_name,
+                currency=currency,
+            )
+            session.add(new_user)
+        else:
+            user.currency = currency
+
+        session.commit()
+
+        await callback.message.answer(
+        f"✅ Great! Your currency is set to {CURRENCY_SYMBOLS.get(currency)}.",
+        reply_markup = get_main_menu()
+    )
+
+    if was_empty:
+        text_mini_instruction = f"""
+            {html.bold('📖 How to add expenses:')}
+            Send a message in format:
+            {html.code('amount category description')}
+            Example: {html.code('500 food pizza')}
+            """
+
+        await callback.message.answer(text_mini_instruction)
+
+    await callback.answer()
+
 # Start
 @router.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
-        if user is None:
-            new_user = User(id=message.from_user.id,
-                            username=message.from_user.username,
-                            first_name=message.from_user.first_name
-                            )
-            session.add(new_user)
-            session.commit()
-    await message.answer(
-        f"Hello, {html.bold(message.from_user.full_name)}!",
-        reply_markup=get_main_menu()
-    )
+        if user:
+            await message.answer(
+        f"Welcome back, {html.bold(message.from_user.full_name)}!",
+            reply_markup=get_main_menu()
+            )
+        else:
+            await start_onboarding(message)
 
 # Set currency
 @router.message(Command("setcurrency"))
@@ -111,8 +170,21 @@ async def command_help_handler(message: Message):
     food, transport, healthcare, entertainment, shopping, bills, coffee, education, gym, other"""
     await message.answer(text)
 
+
+
 # Settings
 @router.message(F.text == "⚙️ Settings")
 async def button_settings(message: Message):
-    await message.answer("⚙️ Settings menu is under development 🚧")
+    await message.answer(
+        "Choose your settings:", reply_markup=get_settings_keyboard()
+    )
+
+
+
+
+
+
+
+
+
 
