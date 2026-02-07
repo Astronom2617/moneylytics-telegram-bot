@@ -10,6 +10,7 @@ from handlers.start import CURRENCY_SYMBOLS
 
 router = Router()
 
+# /today
 @router.message(Command("today"))
 @router.message(F.text == "📊 Today")
 async def daily_report(message: Message):
@@ -49,7 +50,7 @@ async def daily_report(message: Message):
         await message.answer(report_today)
 
 
-
+# /week
 @router.message(Command("week"))
 @router.message(F.text == "📅 Week")
 async def weekly_report(message: Message):
@@ -90,6 +91,7 @@ async def weekly_report(message: Message):
 
         await message.answer(report_week)
 
+# /categories
 @router.message(Command("/categories"))
 @router.message(F.text == "📈 Categories")
 async def button_categories(message: Message):

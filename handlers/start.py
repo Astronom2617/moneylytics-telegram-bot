@@ -38,6 +38,7 @@ CURRENCY_SYMBOLS = {
 
 router = Router()
 
+# Onboarding function
 async def start_onboarding(message: Message):
     await message.answer(
         f"Hello, {message.from_user.first_name}! 👋\n\n"
@@ -50,6 +51,7 @@ async def start_onboarding(message: Message):
         reply_markup=get_currency_keyboard()
     )
 
+# Callback for choosing setting
 @router.callback_query(F.data.startswith("set:"))
 async def process_settings_selection(callback: CallbackQuery):
     settings = callback.data.split(":")[1]
@@ -63,6 +65,7 @@ async def process_settings_selection(callback: CallbackQuery):
     else:
         await callback.message.edit_text("Unknown setting")
 
+# Callback for changing currency
 @router.callback_query(F.data.startswith("currency_"))
 async def process_currency_selection(callback: CallbackQuery):
     currency = callback.data.split("_")[1]
