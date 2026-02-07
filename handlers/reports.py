@@ -6,7 +6,7 @@ from collections import defaultdict
 from databases import get_session, Expense, User
 from datetime import datetime, time, timedelta
 
-from handlers.start import CURRENCY_SYMBOLS
+from utils.currency import CURRENCY_SYMBOLS
 
 router = Router()
 
