@@ -85,18 +85,29 @@ The description is optional:
 ```
 moneylytics-bot/
 ├── databases/
-│   ├── __init__.py
-│   ├── models.py      # SQLAlchemy models (User, Expense)
-│   └── db.py          # Database connection and session management
+│ ├── init.py
+│ ├── db.py # Database connection and session management
+│ └── models.py # SQLAlchemy models (User, Expense)
 ├── handlers/
-│   ├── start.py       # /start command handler
-│   ├── expenses.py    # Expense input handler
-│   └── reports.py     # Analytics and reports handlers
-├── utils/             # Utility functions (planned)
-├── main.py            # Bot entry point
-├── requirements.txt   # Project dependencies
-├── .env              # Environment variables (not in repo)
+│ ├── init.py
+│ ├── start.py # /start + basic commands
+│ ├── onboarding.py # New user onboarding (currency setup)
+│ ├── callbacks.py # Inline callbacks (settings, currency selection)
+│ ├── expenses.py # Expense input handler
+│ ├── reports.py # Analytics and reports handlers
+│ └── budget.py # Budget features (in progress)
+├── utils/
+│ ├── init.py
+│ ├── keyboards.py # Reply/Inline keyboards
+│ ├── currency.py # Currency mappings and symbols
+│ ├── analytics.py # Analytics helpers
+│ └── charts.py # Charts generation (matplotlib)
+├── main.py # Bot entry point
+├── requirements.txt # Project dependencies
+├── .env # Environment variables (not in repo)
+├── .env.example # Example env file
 ├── .gitignore
+├── moneylytics_bot.db # SQLite database (local)
 └── README.md
 ```
 
