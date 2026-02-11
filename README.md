@@ -64,7 +64,8 @@ python main.py
 - `/today` - Get daily expense report with category breakdown
 - `/week` - Get weekly expense report with category breakdown
 - `/setcurrency` - Set preferred currency
-- `/categories` - View spending distribution by categories with charts (coming soon)
+- `/categories` - View spending distribution by categories with charts
+- `/settings` - Manage your account settings (currency)
 
 ### Adding Expenses
 
@@ -136,10 +137,11 @@ moneylytics-bot/
 - [x] Expense tracking
 - [x] Daily reports
 - [x] Weekly reports
-- [ ] Category-based analytics with charts
+- [x] Category-based analytics with charts
 - [ ] Budget management (set limits, notifications)
 - [ ] Edit/delete expenses
 - [ ] Data export
+- [ ] Language Change (EN/RU/UA)
 
 ## 📝 License
 
