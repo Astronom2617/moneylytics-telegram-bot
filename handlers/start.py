@@ -70,9 +70,12 @@ async def command_help_handler(message: Message):
 
     {html.bold('Available commands:')}
     - /start - Register in the bot
-    - /today - Get today's expense report
-    - /week - Get weekly expense report
-    - /help - Show this instruction
+    - /today - Daily expense report
+    - /week - Weekly expense report
+    - /categories - Expense breakdown with chart
+    - /settings - Account settings
+    - /setcurrency - Set preferred currency
+    - /help - Show this message
 
     {html.bold('Tips:')}
     - Amount must be a number
