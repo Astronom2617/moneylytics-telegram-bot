@@ -38,19 +38,24 @@ async def daily_report(message: Message):
             await message.answer("You don't have any expenses today")
             return
 
-        categories_d = defaultdict(float)
+        report_today = html.bold("📊 Today's report:\n")
+
+        categories_d = defaultdict(list)
         for expense in expenses:
-            categories_d[expense.category] += expense.amount
+            categories_d[expense.category].append(expense)
 
-        sum_expenses = sum(expense.amount for expense in expenses)
+        for category, expenses in categories_d.items():
+            report_today += html.bold(f"\n{category.capitalize()}:\n")
 
-        report_today = html.bold("📊 Today's report:\n\n")
+            for expense in expenses:
+                if expense.description:
+                    report_today += html.bold(f"  • {expense.amount:.2f} {currency_symbol} - {expense.description}\n")
+                else:
+                    report_today += html.bold(f"  • {expense.amount:.2f} {currency_symbol}\n")
 
-        for category, total in categories_d.items():
-            report_today += html.bold(f"💰 {category.capitalize()}: {total:.2f} {currency_symbol}\n")
-
-        report_today += "\n━━━━━━━━━━━━━━━\n"
-        report_today += html.bold(f"Total: {sum_expenses:.2f} {currency_symbol}")
+        category_total = sum(e.amount for e in expenses)
+        report_today += "━━━━━━━━━━━━━━━\n"
+        report_today += html.bold(f"Total: {category_total:.2f}{currency_symbol}")
 
         await message.answer(report_today)
 
@@ -80,19 +85,24 @@ async def weekly_report(message: Message):
             await message.answer("You don't have any expenses on this week.")
             return
 
-        categories_w = defaultdict(float)
+        report_week = html.bold(f"📊 Weekly report ({start_date} - {end_date}):\n")
+
+        categories_w = defaultdict(list)
         for expense in expenses:
-            categories_w[expense.category] += expense.amount
+            categories_w[expense.category].append(expense)
 
-        sum_expenses = sum(expense.amount for expense in expenses)
+        for category, expenses in categories_w.items():
+            report_week += html.bold(f"\n{category.capitalize()}:\n")
 
-        report_week = html.bold(f"📊 Weekly report ({start_date} - {end_date}):\n\n")
+            for expense in expenses:
+                if expense.description:
+                    report_week += html.bold(f"  • {expense.amount:.2f} {currency_symbol} - {expense.description}\n")
+                else:
+                    report_week += html.bold(f"  • {expense.amount:.2f} {currency_symbol}\n")
 
-        for category, total in categories_w.items():
-            report_week += html.bold(f"💰 {category.capitalize()}: {total:.2f} {currency_symbol}\n")
-
-        report_week += "\n━━━━━━━━━━━━━━━\n"
-        report_week += html.bold(f"Total: {sum_expenses:.2f} {currency_symbol}")
+        category_total = sum(e.amount for e in expenses)
+        report_week += "━━━━━━━━━━━━━━━\n"
+        report_week += html.bold(f"Total: {category_total:.2f}{currency_symbol}")
 
         await message.answer(report_week)
 
