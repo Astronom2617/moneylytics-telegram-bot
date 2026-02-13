@@ -27,6 +27,18 @@ def get_settings_keyboard() -> InlineKeyboardMarkup:
     )
     return settings_menu
 
+# Budget Buttons
+def get_budget_keyboard() -> InlineKeyboardMarkup:
+    budget_menu = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text = '📅 Daily budget', callback_data='budget_daily'),
+                InlineKeyboardButton(text='📆 Weekly budget', callback_data='budget_weekly')
+            ]
+        ]
+    )
+    return budget_menu
+
 # Currency Buttons
 def get_currency_keyboard() -> InlineKeyboardMarkup:
     currency_menu = InlineKeyboardMarkup(
