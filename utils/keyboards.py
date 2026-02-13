@@ -19,9 +19,7 @@ def get_settings_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(text = 'Choose your currency 💲', callback_data='set:cur'),
-            ],
-            [
-                InlineKeyboardButton(text = 'Choose your language 🌐', callback_data='set:lang'),
+                InlineKeyboardButton(text = 'Choose your language 🌐', callback_data='set:lang')
             ]
         ]
     )
@@ -49,7 +47,7 @@ def get_currency_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text='UAH ₴', callback_data='currency_UAH'),
-                InlineKeyboardButton(text='GBP $', callback_data='currency_GBP'),
+                InlineKeyboardButton(text='GBP £', callback_data='currency_GBP'),
             ]
         ]
     )

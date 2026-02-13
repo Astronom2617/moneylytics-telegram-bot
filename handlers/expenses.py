@@ -15,7 +15,7 @@ async def add_expenses(message: Message):
         return
 
     try:
-        amount = float(parts[0])
+        amount = float(parts[0].replace(",", "."))
         category = parts[1]
         description = " ".join(parts[2:]) if len(parts) > 2 else None
     except ValueError:
