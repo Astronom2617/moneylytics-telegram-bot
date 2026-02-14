@@ -65,8 +65,8 @@ async def daily_report(message: Message):
         total = sum(e.amount for e in expenses)
         report_today += "━━━━━━━━━━━━━━━\n"
         report_today += html.bold(f"💰 Total: {total:.2f} {currency_symbol}\n")
-        report_today += html.italic(html.bold(f"\n🏆 Largest expense today: {max(expenses, key=lambda e: e.amount).amount:.2f} {currency_symbol}  — {max(expenses, key=lambda e: e.amount).description.capitalize()} ({max(expenses, key=lambda e: e.amount).category.capitalize()})"))
-
+        largest_expense = max(expenses, key=lambda e: e.amount)
+        report_today += html.italic(html.bold(f"\n🏆 Largest expense today: {largest_expense.amount:.2f} {currency_symbol}  — {largest_expense.description.capitalize() if largest_expense.description else ''} ({largest_expense.category.capitalize()})"))
         await message.answer(report_today)
 
 
