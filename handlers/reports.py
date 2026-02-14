@@ -38,24 +38,34 @@ async def daily_report(message: Message):
             await message.answer("You don't have any expenses today")
             return
 
-        report_today = html.bold("📊 Today's report:\n")
+        day_today = datetime.now().strftime("%d %b")
+        report_today = html.bold(f"📊 Today's report ({day_today}):\n")
 
         categories_d = defaultdict(list)
         for expense in expenses:
             categories_d[expense.category].append(expense)
 
-        for category, expenses in categories_d.items():
-            report_today += html.bold(f"\n{category.capitalize()}:\n")
+        for category in sorted(categories_d):
+            cat_expenses = categories_d[category]
 
-            for expense in expenses:
+            category_total = sum(e.amount for e in cat_expenses)
+
+            report_today += html.bold(f"\n{category.capitalize()} ({(len(cat_expenses))}) — {category_total:.2f} {currency_symbol}:\n")
+
+            for expense in sorted(cat_expenses, key=lambda e: e.amount, reverse=True):
                 if expense.description:
-                    report_today += html.bold(f"  • {expense.amount:.2f} {currency_symbol} - {expense.description}\n")
+                    report_today += html.bold(
+                        f"\n  • {expense.amount:.2f} {currency_symbol} - {expense.description.capitalize()}\n"
+                    )
                 else:
-                    report_today += html.bold(f"  • {expense.amount:.2f} {currency_symbol}\n")
+                    report_today += html.bold(
+                        f"\n  • {expense.amount:.2f} {currency_symbol}\n"
+                    )
 
-        category_total = sum(e.amount for e in expenses)
+        total = sum(e.amount for e in expenses)
         report_today += "━━━━━━━━━━━━━━━\n"
-        report_today += html.bold(f"Total: {category_total:.2f}{currency_symbol}")
+        report_today += html.bold(f"💰 Total: {total:.2f} {currency_symbol}\n")
+        report_today += html.italic(html.bold(f"\n🏆 Largest expense today: {max(expenses, key=lambda e: e.amount).amount:.2f} {currency_symbol}  — {max(expenses, key=lambda e: e.amount).description.capitalize()} ({max(expenses, key=lambda e: e.amount).category.capitalize()})"))
 
         await message.answer(report_today)
 
@@ -91,18 +101,28 @@ async def weekly_report(message: Message):
         for expense in expenses:
             categories_w[expense.category].append(expense)
 
-        for category, expenses in categories_w.items():
-            report_week += html.bold(f"\n{category.capitalize()}:\n")
+        for category in sorted(categories_w):
+            cat_expenses = categories_w[category]
 
-            for expense in expenses:
+            category_total = sum(e.amount for e in cat_expenses)
+
+            report_week += html.bold(f"\n{category.capitalize()} ({(len(cat_expenses))}) — {category_total:.2f} {currency_symbol}:\n")
+
+            for expense in sorted(cat_expenses, key=lambda e: e.amount, reverse=True):
                 if expense.description:
-                    report_week += html.bold(f"  • {expense.amount:.2f} {currency_symbol} - {expense.description}\n")
+                    report_week += html.bold(
+                        f"\n  • {expense.amount:.2f} {currency_symbol} - {expense.description.capitalize()}\n"
+                    )
                 else:
-                    report_week += html.bold(f"  • {expense.amount:.2f} {currency_symbol}\n")
+                    report_week += html.bold(
+                        f"\n  • {expense.amount:.2f} {currency_symbol}\n"
+                    )
 
-        category_total = sum(e.amount for e in expenses)
+        total = sum(e.amount for e in expenses)
         report_week += "━━━━━━━━━━━━━━━\n"
-        report_week += html.bold(f"Total: {category_total:.2f}{currency_symbol}")
+        report_week += html.bold(f"💰 Total: {total:.2f} {currency_symbol}\n")
+        report_week += html.italic(html.bold(
+            f"\n🏆 Largest expense this week: {max(expenses, key=lambda e: e.amount).amount:.2f} {currency_symbol}  — {max(expenses, key=lambda e: e.amount).description.capitalize()} ({max(expenses, key=lambda e: e.amount).category.capitalize()})"))
 
         await message.answer(report_week)
 
