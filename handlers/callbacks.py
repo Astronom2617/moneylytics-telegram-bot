@@ -1,9 +1,11 @@
 from aiogram import Router, html, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 
 from databases import get_session, User
 from utils.keyboards import get_main_menu, get_currency_keyboard
 from utils.currency import CURRENCY_SYMBOLS
+from aiogram.fsm.context import FSMContext
+from handlers.budget import BudgetStates
 
 router = Router()
 
@@ -57,3 +59,58 @@ async def process_currency_selection(callback: CallbackQuery):
         await callback.message.answer(text_mini_instruction)
 
     await callback.answer()
+
+# Setting daily budget
+@router.callback_query(F.data.startswith("budget_daily"))
+async def process_budget_daily(callback: CallbackQuery, state: F.State.callback_data):
+    await state.set_state(BudgetStates.waiting_for_daily_budget)
+    await callback.message.answer("Enter your daily budget amount:")
+    await callback.answer()
+
+@router.message(BudgetStates.waiting_for_daily_budget)
+async def process_daily_budget(message: Message, state: FSMContext):
+    text_d = message.text
+    limit = 0.0
+    try:
+        limit = float(text_d.replace(",", "."))
+    except ValueError:
+        await message.answer(f"'{limit}' is not a number!")
+        return
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        user.daily_budget = limit
+        session.commit()
+
+    await state.clear()
+
+    await message.answer(html.bold(f"Daily budget set to {limit} {CURRENCY_SYMBOLS.get(user.currency)} ✅"))
+
+# Setting weekly budget
+@router.callback_query(F.data.startswith("budget_weekly"))
+async def process_budget_weekly(callback: CallbackQuery, state: F.State.callback_data):
+    await state.set_state(BudgetStates.waiting_for_weekly_budget)
+    await callback.message.answer("Enter your weekly budget amount:")
+    await callback.answer()
+
+@router.message(BudgetStates.waiting_for_weekly_budget)
+async def process_weekly_budget(message: Message, state: FSMContext):
+    text_w = message.text
+    limit = 0.0
+    try:
+        limit = float(text_w.replace(",", "."))
+    except ValueError:
+        await message.answer(f"'{limit}' is not a number!")
+        return
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        user.weekly_budget = limit
+        session.commit()
+
+    await state.clear()
+
+    await message.answer(html.bold(f"Weekly budget set to {limit} {CURRENCY_SYMBOLS.get(user.currency)} ✅"))
+
+
+
