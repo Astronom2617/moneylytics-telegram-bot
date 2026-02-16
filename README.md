@@ -2,6 +2,8 @@
 
 A Telegram bot for personal expense tracking with automatic financial analytics and reporting.
 
+> 📚 **For Learners:** Check out [ARCHITECTURE_ANALYSIS.md](ARCHITECTURE_ANALYSIS.md) for a comprehensive analysis of the project architecture and [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md) for step-by-step improvements!
+
 ## 📋 Description
 
 Moneylytics Bot helps you track your daily expenses directly in Telegram. Simply send a message with the amount, category, and description, and the bot will save it to the database. Get daily and weekly reports, view spending by categories, and set budget limits. Users can select their preferred currency, and all reports display the corresponding currency symbol automatically.
@@ -142,6 +144,17 @@ moneylytics-bot/
 - [ ] Edit/delete expenses
 - [ ] Data export
 - [ ] Language Change (EN/RU/UA)
+
+## 🎓 Learning & Architecture
+
+For developers learning from this project:
+
+- 📖 **[Architecture Analysis](ARCHITECTURE_ANALYSIS.md)** - Deep dive into the current architecture pattern, identified issues, and improvement suggestions
+- 🚀 **[Quick Start Guide](QUICK_START_GUIDE.md)** - 4-week plan to implement architectural improvements
+- 🏗️ **Architecture Style:** Modular Monolith with Handler-based pattern
+- 📊 **Improvement Phases:** Validator pattern → Service layer → Repository pattern → Advanced patterns
+
+These documents act as a mentor, explaining architectural concepts without rewriting your code. Perfect for self-learners!
 
 ## 📝 License
 
