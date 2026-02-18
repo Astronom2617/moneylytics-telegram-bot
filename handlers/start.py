@@ -88,7 +88,7 @@ async def command_help_handler(message: Message):
 
 
 # Settings
-@router.message(Command("/settings"))
+@router.message(Command("settings"))
 @router.message(F.text == "⚙️ Settings")
 async def button_settings(message: Message):
     await message.answer(
