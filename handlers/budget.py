@@ -1,10 +1,7 @@
-from aiogram import Router, html, F
+from aiogram import Router, F
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from utils.keyboards import get_budget_keyboard
-
-from databases import get_session, User
 
 router = Router()
 
