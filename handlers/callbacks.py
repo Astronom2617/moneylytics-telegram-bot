@@ -60,57 +60,46 @@ async def process_currency_selection(callback: CallbackQuery):
 
     await callback.answer()
 
+# Setting Budget
+async def set_budget(message: Message, state: FSMContext, field: str, label: str):
+    text = message.text
+    try:
+        text = float(text.replace(",", "."))
+    except ValueError:
+        await message.answer(f"'{text}' is not a number!")
+        return
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        setattr(user, field, text)
+        session.commit()
+        currency = user.currency
+
+    await state.clear()
+
+    await message.answer(html.bold(f"{label} set to {text} {CURRENCY_SYMBOLS.get(currency)} ✅"))
+
 # Setting daily budget
 @router.callback_query(F.data.startswith("budget_daily"))
-async def process_budget_daily(callback: CallbackQuery, state: F.State.callback_data):
+async def process_budget_daily(callback: CallbackQuery, state: FSMContext):
     await state.set_state(BudgetStates.waiting_for_daily_budget)
     await callback.message.answer("Enter your daily budget amount:")
     await callback.answer()
 
 @router.message(BudgetStates.waiting_for_daily_budget)
 async def process_daily_budget(message: Message, state: FSMContext):
-    text_d = message.text
-    limit = 0.0
-    try:
-        limit = float(text_d.replace(",", "."))
-    except ValueError:
-        await message.answer(f"'{limit}' is not a number!")
-        return
-
-    with get_session() as session:
-        user = session.query(User).filter(User.id == message.from_user.id).first()
-        user.daily_budget = limit
-        session.commit()
-
-    await state.clear()
-
-    await message.answer(html.bold(f"Daily budget set to {limit} {CURRENCY_SYMBOLS.get(user.currency)} ✅"))
+    await set_budget(message, state, "daily_budget", "Daily budget")
 
 # Setting weekly budget
 @router.callback_query(F.data.startswith("budget_weekly"))
-async def process_budget_weekly(callback: CallbackQuery, state: F.State.callback_data):
+async def process_budget_weekly(callback: CallbackQuery, state: FSMContext):
     await state.set_state(BudgetStates.waiting_for_weekly_budget)
     await callback.message.answer("Enter your weekly budget amount:")
     await callback.answer()
 
 @router.message(BudgetStates.waiting_for_weekly_budget)
 async def process_weekly_budget(message: Message, state: FSMContext):
-    text_w = message.text
-    limit = 0.0
-    try:
-        limit = float(text_w.replace(",", "."))
-    except ValueError:
-        await message.answer(f"'{limit}' is not a number!")
-        return
-
-    with get_session() as session:
-        user = session.query(User).filter(User.id == message.from_user.id).first()
-        user.weekly_budget = limit
-        session.commit()
-
-    await state.clear()
-
-    await message.answer(html.bold(f"Weekly budget set to {limit} {CURRENCY_SYMBOLS.get(user.currency)} ✅"))
+    await set_budget(message, state, "weekly_budget", "Weekly budget")
 
 
 
