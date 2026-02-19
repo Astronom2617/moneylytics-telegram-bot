@@ -12,6 +12,11 @@ router = Router()
 # Callback for choosing setting
 @router.callback_query(F.data.startswith("set:"))
 async def process_settings_selection(callback: CallbackQuery):
+    """Handle a settings menu selection callback and route to the appropriate setting.
+
+    Args:
+        callback: The callback query containing the selected setting identifier.
+    """
     settings = callback.data.split(":")[1]
     if settings == "cur":
         await callback.message.edit_text(
@@ -26,6 +31,11 @@ async def process_settings_selection(callback: CallbackQuery):
 # Callback for changing currency
 @router.callback_query(F.data.startswith("currency_"))
 async def process_currency_selection(callback: CallbackQuery):
+    """Handle a currency selection callback and update the user's currency in the database.
+
+    Args:
+        callback: The callback query containing the selected currency code.
+    """
     currency = callback.data.split("_")[1]
     with get_session() as session:
         user = session.query(User).filter(User.id == callback.from_user.id).first()
@@ -62,6 +72,17 @@ async def process_currency_selection(callback: CallbackQuery):
 
 # Setting Budget
 async def set_budget(message: Message, state: FSMContext, field: str, label: str):
+    """Set daily or weekly budget for a user.
+
+    Parses the amount from message text, saves it to the database,
+    and sends confirmation with currency symbol.
+
+    Args:
+        message: Telegram message containing the budget amount.
+        state: FSM context to clear after setting budget.
+        field: Database field name ("daily_budget" or "weekly_budget").
+        label: Display label for the response ("Daily budget" or "Weekly budget").
+    """
     text = message.text
     try:
         text = float(text.replace(",", "."))
@@ -82,23 +103,47 @@ async def set_budget(message: Message, state: FSMContext, field: str, label: str
 # Setting daily budget
 @router.callback_query(F.data.startswith("budget_daily"))
 async def process_budget_daily(callback: CallbackQuery, state: FSMContext):
+    """Handle the daily budget callback and prompt the user to enter a daily budget amount.
+
+    Args:
+        callback: The callback query that triggered the daily budget flow.
+        state: The FSM context used to set the waiting state.
+    """
     await state.set_state(BudgetStates.waiting_for_daily_budget)
     await callback.message.answer("Enter your daily budget amount:")
     await callback.answer()
 
 @router.message(BudgetStates.waiting_for_daily_budget)
 async def process_daily_budget(message: Message, state: FSMContext):
+    """Receive and save the daily budget amount entered by the user.
+
+    Args:
+        message: The incoming Telegram message containing the budget value.
+        state: The FSM context used to clear the waiting state after saving.
+    """
     await set_budget(message, state, "daily_budget", "Daily budget")
 
 # Setting weekly budget
 @router.callback_query(F.data.startswith("budget_weekly"))
 async def process_budget_weekly(callback: CallbackQuery, state: FSMContext):
+    """Handle the weekly budget callback and prompt the user to enter a weekly budget amount.
+
+    Args:
+        callback: The callback query that triggered the weekly budget flow.
+        state: The FSM context used to set the waiting state.
+    """
     await state.set_state(BudgetStates.waiting_for_weekly_budget)
     await callback.message.answer("Enter your weekly budget amount:")
     await callback.answer()
 
 @router.message(BudgetStates.waiting_for_weekly_budget)
 async def process_weekly_budget(message: Message, state: FSMContext):
+    """Receive and save the weekly budget amount entered by the user.
+
+    Args:
+        message: The incoming Telegram message containing the budget value.
+        state: The FSM context used to clear the waiting state after saving.
+    """
     await set_budget(message, state, "weekly_budget", "Weekly budget")
 
 

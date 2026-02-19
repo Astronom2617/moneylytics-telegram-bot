@@ -13,6 +13,11 @@ router = Router()
 # Start
 @router.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
+    """Handle the /start command, greeting returning users or starting onboarding.
+
+    Args:
+        message: The incoming Telegram message.
+    """
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
         if user:
@@ -27,6 +32,11 @@ async def command_start_handler(message: Message) -> None:
 # Set currency
 @router.message(Command("setcurrency"))
 async def command_set_currency_handler(message: Message):
+    """Handle the /setcurrency command to update the user's preferred currency.
+
+    Args:
+        message: The incoming Telegram message containing the currency code.
+    """
     parts = message.text.split()
 
     if len(parts) < 2:
@@ -57,6 +67,11 @@ async def command_set_currency_handler(message: Message):
 @router.message(Command("help"))
 @router.message(F.text == "ℹ️ Help")
 async def command_help_handler(message: Message):
+    """Handle the /help command or the Help button, displaying usage instructions.
+
+    Args:
+        message: The incoming Telegram message.
+    """
     text = f"""
     {html.bold('📖 How to use Moneylytics Bot')}
 
@@ -91,6 +106,11 @@ async def command_help_handler(message: Message):
 @router.message(Command("settings"))
 @router.message(F.text == "⚙️ Settings")
 async def button_settings(message: Message):
+    """Handle the /settings command or the Settings button, showing the settings menu.
+
+    Args:
+        message: The incoming Telegram message.
+    """
     await message.answer(
         "Choose your settings:", reply_markup=get_settings_keyboard()
     )

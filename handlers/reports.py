@@ -17,6 +17,16 @@ router = Router()
 
 # Get user currency
 def get_user_currency(user_id: int) -> tuple[str, str]:
+    """Get user's currency code and symbol.
+
+    Returns EUR as default if user has no currency set.
+
+    Args:
+        user_id: Telegram user ID.
+
+    Returns:
+        Tuple of (currency_code, currency_symbol), e.g. ("EUR", "€").
+    """
     with get_session() as session:
         user = session.query(User).filter(User.id == user_id).first()
         if user and user.currency:
@@ -30,6 +40,16 @@ def get_user_currency(user_id: int) -> tuple[str, str]:
 
 # Get expenses by period
 def get_expenses_by_period(user_id: int, start_date: datetime, end_date: datetime) -> list:
+    """Get all user expenses within a date range.
+
+    Args:
+        user_id: Telegram user ID.
+        start_date: Start of the period (inclusive).
+        end_date: End of the period (inclusive).
+
+    Returns:
+        List of Expense objects for the given period.
+    """
     with get_session() as session:
         expenses = session.query(Expense).filter(
             Expense.user_id == user_id,
@@ -40,6 +60,20 @@ def get_expenses_by_period(user_id: int, start_date: datetime, end_date: datetim
 
 # Build expense report
 def build_expense_report(expenses: list, title: str, currency_symbol: str, largest_expense_title: str) -> str:
+    """Build formatted HTML expense report grouped by category.
+
+    Groups expenses by category, calculates totals per category
+    and overall, and highlights the largest expense.
+
+    Args:
+        expenses: List of Expense objects to include in the report.
+        title: Report header, e.g. "📊 Today's report (20 Feb)".
+        currency_symbol: Currency symbol for formatting, e.g. "€".
+        largest_expense_title: Label for largest expense, e.g. "Largest expense today".
+
+    Returns:
+        Formatted HTML string ready to send via Telegram.
+    """
     report = html.bold(f"{title}:\n")
     categories = defaultdict(list)
     for expense in expenses:
@@ -78,6 +112,11 @@ def build_expense_report(expenses: list, title: str, currency_symbol: str, large
 @router.message(Command("today"))
 @router.message(F.text == "📊 Today")
 async def daily_report(message: Message):
+    """Handle the /today command or Today button, sending a report of today's expenses.
+
+    Args:
+        message: The incoming Telegram message.
+    """
     today_start = datetime.combine(datetime.now(), time.min)
     today_end = datetime.combine(datetime.now(), time.max)
 
@@ -102,8 +141,13 @@ async def daily_report(message: Message):
 @router.message(Command("week"))
 @router.message(F.text == "📅 Week")
 async def weekly_report(message: Message):
+    """Handle the /week command or Week button, sending a report of the past week's expenses.
+
+    Args:
+        message: The incoming Telegram message.
+    """
     week_start = datetime.now() - timedelta(weeks=1)
-    week_end =  datetime.now()
+    week_end = datetime.now()
 
     currency, currency_symbol = get_user_currency(message.from_user.id)
     expenses = get_expenses_by_period(message.from_user.id, week_start, week_end)
@@ -126,6 +170,11 @@ async def weekly_report(message: Message):
 @router.message(Command("categories"))
 @router.message(F.text == "📈 Categories")
 async def button_categories(message: Message):
+    """Handle the /categories command or Categories button, sending a pie chart of monthly expenses.
+
+    Args:
+        message: The incoming Telegram message.
+    """
     month_start = datetime.now() - timedelta(days=30)
     month_end = datetime.now()
 

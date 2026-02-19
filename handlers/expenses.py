@@ -7,6 +7,11 @@ router = Router()
 
 @router.message()
 async def add_expenses(message: Message):
+    """Parse an incoming message and save a new expense for the user.
+
+    Args:
+        message: The incoming Telegram message in the format 'amount category [description]'.
+    """
     text = message.text
     parts = text.split()
 
