@@ -1,7 +1,8 @@
 from aiogram import Router, html
 from aiogram.types import Message
 
-from databases import get_session, Expense
+from databases import get_session, Expense, User
+from utils.currency import CURRENCY_SYMBOLS
 
 router = Router()
 
@@ -21,10 +22,18 @@ async def add_expenses(message: Message):
 
     try:
         amount = float(parts[0].replace(",", "."))
-        category = parts[1]
+        category = parts[1].lower().strip()
         description = " ".join(parts[2:]) if len(parts) > 2 else None
     except ValueError:
         await message.answer(f"'{parts[0]}' is not a number!")
+        return
+
+    if amount <= 0:
+        await message.answer("❌ Amount must be positive!")
+        return
+
+    if amount > 1_000_000:
+        await message.answer("⚠️ Are you sure? That's over 1,000,000!")
         return
 
     with get_session() as session:
@@ -34,4 +43,8 @@ async def add_expenses(message: Message):
                             description=description)
         session.add(new_expense)
         session.commit()
-        await message.answer(f"{html.bold(message.from_user.full_name)}, your expense has been saved!")
+
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user else "€"
+        desc_text = f" ({description.capitalize()})" if description else ""
+        await message.answer(html.bold(f"✅ Saved: {amount:.2f}{currency_symbol} — {category}{desc_text}"))
