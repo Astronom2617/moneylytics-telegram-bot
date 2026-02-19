@@ -1,5 +1,3 @@
-from typing import Any
-
 from aiogram import Router, html, F
 from aiogram.filters import Command
 from aiogram.types import Message
