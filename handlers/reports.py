@@ -78,6 +78,11 @@ def build_expense_report(expenses: list, title: str, currency_symbol: str, large
 @router.message(Command("today"))
 @router.message(F.text == "📊 Today")
 async def daily_report(message: Message):
+    """Handle the /today command or Today button, sending a report of today's expenses.
+
+    Args:
+        message: The incoming Telegram message.
+    """
     today_start = datetime.combine(datetime.now(), time.min)
     today_end = datetime.combine(datetime.now(), time.max)
 
@@ -102,6 +107,11 @@ async def daily_report(message: Message):
 @router.message(Command("week"))
 @router.message(F.text == "📅 Week")
 async def weekly_report(message: Message):
+    """Handle the /week command or Week button, sending a report of the past week's expenses.
+
+    Args:
+        message: The incoming Telegram message.
+    """
     week_start = datetime.now() - timedelta(weeks=1)
     week_end =  datetime.now()
 
@@ -126,6 +136,11 @@ async def weekly_report(message: Message):
 @router.message(Command("categories"))
 @router.message(F.text == "📈 Categories")
 async def button_categories(message: Message):
+    """Handle the /categories command or Categories button, sending a pie chart of monthly expenses.
+
+    Args:
+        message: The incoming Telegram message.
+    """
     month_start = datetime.now() - timedelta(days=30)
     month_end = datetime.now()
 
