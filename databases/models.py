@@ -14,6 +14,8 @@ class User(Base):
     daily_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
     weekly_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
     currency: Mapped[str] = mapped_column(String(20), default="EUR", nullable=True)
+    daily_over_limit_count: Mapped[int] = mapped_column(Integer, default=0)
+    weekly_over_limit_count: Mapped[int] = mapped_column(Integer, default=0)
 
 class Expense(Base):
     __tablename__ = 'expenses'
