@@ -146,8 +146,10 @@ async def weekly_report(message: Message):
     Args:
         message: The incoming Telegram message.
     """
-    week_start = datetime.now() - timedelta(weeks=1)
-    week_end = datetime.now()
+
+    today_start = datetime.combine(datetime.now(), time.min)
+    week_start = today_start - timedelta(days=datetime.now().weekday())
+    week_end = datetime.combine(datetime.now(), time.max)
 
     currency, currency_symbol = get_user_currency(message.from_user.id)
     expenses = get_expenses_by_period(message.from_user.id, week_start, week_end)
@@ -175,7 +177,7 @@ async def button_categories(message: Message):
     Args:
         message: The incoming Telegram message.
     """
-    month_start = datetime.now() - timedelta(days=30)
+    month_start = datetime.combine(datetime.now().replace(day=1), time.min)
     month_end = datetime.now()
 
     with get_session() as session:
