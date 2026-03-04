@@ -16,3 +16,5 @@ async def button_budget(message: Message):
     await message.answer("Choose your budget:",
                          reply_markup=get_budget_keyboard()
                          )
+
+
