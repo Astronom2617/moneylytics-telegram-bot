@@ -179,6 +179,8 @@ async def button_categories(message: Message):
     """
     month_start = datetime.combine(datetime.now().replace(day=1), time.min)
     month_end = datetime.now()
+    start_str = month_start.strftime("%d.%m")
+    end_str = month_end.strftime("%d.%m")
 
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
@@ -212,7 +214,7 @@ async def button_categories(message: Message):
             labels=labels
         )
 
-        plt.title("Expenses by Category (Last 30 days)")
+        plt.title(f"Expenses by Category ({start_str} - {end_str})")
         plt.ylabel("")
 
         buffer = BytesIO()
@@ -223,7 +225,7 @@ async def button_categories(message: Message):
 
         photo = BufferedInputFile(buffer.read(), filename="categories.png")
 
-        await message.answer("There is your pie chart with all categories for the last 30 days.")
+        await message.answer(f"Here is your pie chart by categories for this month ({start_str} - {end_str}).")
         await message.answer_photo(photo)
 
 
