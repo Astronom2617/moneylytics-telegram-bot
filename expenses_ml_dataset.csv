@@ -1,0 +1,101 @@
+description,category
+pizza takeaway,food
+sushi lunch,food
+mcdonalds order,food
+starbucks coffee,food
+lidl groceries,food
+glovo dinner,food
+wolt lunch,food
+burger king,food
+kfc meal,food
+restaurant bill,food
+coffee to go,food
+breakfast cafe,food
+supermarket pingo doce,food
+snack vending machine,food
+bakery croissant,food
+subway sandwich,food
+uber eats order,food
+dominos pizza,food
+grocery continente,food
+ramen dinner,food
+uber home,transport
+bolt airport,transport
+metro card,transport
+bus ticket,transport
+train lisbon,transport
+taxi downtown,transport
+parking fee city,transport
+fuel station,transport
+airport shuttle,transport
+tram pass,transport
+cab ride night,transport
+uber bv trip,transport
+bus pass monthly,transport
+toll road payment,transport
+train cp ticket,transport
+metro recharge,transport
+parking garage,transport
+bolt ride center,transport
+gas refill,transport
+parking meter,transport
+rent april,housing
+electricity bill,housing
+water bill,housing
+internet home,housing
+ikea shelf,housing
+wifi payment,housing
+gas utility,housing
+home depot order,housing
+cleaning supplies,housing
+laundry detergent,housing
+light bulb pack,housing
+bedsheets order,housing
+kitchen utensils,housing
+furniture delivery,housing
+apartment repair,housing
+vacuum cleaner,housing
+household items,housing
+toilet paper bulk,housing
+dish soap,housing
+home decor,housing
+netflix subscription,entertainment
+spotify premium,entertainment
+cinema tickets,entertainment
+steam game,entertainment
+bowling night,entertainment
+ps store game,entertainment
+xbox pass,entertainment
+concert ticket,entertainment
+museum entry,entertainment
+arcade games,entertainment
+disney plus,entertainment
+youtube premium,entertainment
+theater tickets,entertainment
+gaming dlc,entertainment
+board game cafe,entertainment
+amusement park,entertainment
+football match,entertainment
+nintendo eshop,entertainment
+hbo max,entertainment
+karaoke night,entertainment
+pharmacy order,other
+amazon order,other
+haircut,other
+bank fee,other
+phone case,other
+doctor visit,other
+gift shop,other
+notebook purchase,other
+mobile charger,other
+birthday gift,other
+pet food,other
+dental checkup,other
+cosmetics store,other
+eyeglasses repair,other
+stationery order,other
+tax payment,other
+passport photos,other
+dry cleaning,other
+usb cable,other
+parcel shipping,other
