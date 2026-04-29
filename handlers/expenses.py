@@ -1,12 +1,61 @@
-from aiogram import Router, html
-from aiogram.types import Message
+from aiogram import Router, html, F
+from aiogram.types import Message, CallbackQuery
+from aiogram.filters import Command
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
 from datetime import datetime, time, timedelta
 from sqlalchemy import func
 
 from databases import get_session, Expense, User
 from utils.currency import CURRENCY_SYMBOLS
+from utils.keyboards import get_expenses_list_keyboard, get_expense_details_keyboard
 
 router = Router()
+
+class ExpenseEditStates(StatesGroup):
+    """FSM states for editing expenses."""
+    edit_amount = State()
+    edit_category = State()
+    edit_description = State()
+
+@router.message(Command("myexpenses"))
+@router.message(F.text == "📝 My Expenses")
+async def list_expenses(message: Message):
+    """Show user's recent expenses with selection options.
+    
+    Args:
+        message: The incoming Telegram message.
+    """
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        if user is None:
+            await message.answer("I couldn't find your profile — please send /start to register.")
+            return
+        
+        # Get last 10 expenses for this user
+        expenses = session.query(Expense).filter(
+            Expense.user_id == message.from_user.id
+        ).order_by(Expense.created_at.desc()).limit(10).all()
+        
+        if not expenses:
+            await message.answer(f"You don't have any expenses yet. Start adding expenses with: {html.code('amount category description')}")
+            return
+        
+        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user.currency else "€"
+        
+        text = f"{html.bold('📝 Your Recent Expenses:')}\n\n"
+        for i, exp in enumerate(expenses, 1):
+            if exp.description:
+                # normalize and escape description for safe display
+                norm_desc = exp.description.strip().replace("\n", " ")
+                desc_text = f" - {html.quote(norm_desc)}"
+            else:
+                desc_text = ""
+            text += f"{i}. {exp.amount:.2f}{currency_symbol} {exp.category.capitalize()}{desc_text}\n"
+        
+        text += f"\n{html.italic('Select an expense to edit or delete:')}"
+        
+        await message.answer(text, reply_markup=get_expenses_list_keyboard(expenses))
 
 @router.message()
 async def add_expenses(message: Message):
