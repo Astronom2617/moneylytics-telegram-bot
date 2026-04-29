@@ -30,9 +30,16 @@ def get_budget_keyboard() -> InlineKeyboardMarkup:
     budget_menu = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text = '📅 Daily budget', callback_data='budget_daily'),
+                InlineKeyboardButton(text='📅 Daily budget', callback_data='budget_daily'),
                 InlineKeyboardButton(text='📆 Weekly budget', callback_data='budget_weekly')
-            ]
+            ],
+            [
+                InlineKeyboardButton(text='👀 View budgets', callback_data='budget_view')
+            ],
+            [
+                InlineKeyboardButton(text='♻️ Reset daily', callback_data='budget_reset_daily'),
+                InlineKeyboardButton(text='♻️ Reset weekly', callback_data='budget_reset_weekly')
+            ],
         ]
     )
     return budget_menu
