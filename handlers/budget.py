@@ -10,11 +10,11 @@ class BudgetStates(StatesGroup):
     waiting_for_daily_budget = State()
     waiting_for_weekly_budget = State()
 
+@router.message(Command("budget"))
 @router.message(Command("setbudget"))
 @router.message(F.text == "💰 Budget")
 async def button_budget(message: Message):
-    await message.answer("Choose your budget:",
+    await message.answer("Choose your budget option:",
                          reply_markup=get_budget_keyboard()
                          )
-
 
