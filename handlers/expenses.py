@@ -8,7 +8,7 @@ from sqlalchemy import func
 
 from databases import get_session, Expense, User
 from utils.currency import CURRENCY_SYMBOLS
-from utils.keyboards import get_expenses_list_keyboard, get_expense_details_keyboard
+from utils.keyboards import get_expenses_list_keyboard, get_expense_details_keyboard, get_export_keyboard
 
 router = Router()
 
@@ -56,6 +56,12 @@ async def list_expenses(message: Message):
         text += f"\n{html.italic('Select an expense to edit or delete:')}"
         
         await message.answer(text, reply_markup=get_expenses_list_keyboard(expenses))
+
+@router.message(Command("export"))
+@router.message(F.text == "📤 Export")
+async def export_menu(message: Message):
+    """Show export options for the user as inline buttons."""
+    await message.answer("Choose export option:", reply_markup=get_export_keyboard())
 
 @router.message()
 async def add_expenses(message: Message):

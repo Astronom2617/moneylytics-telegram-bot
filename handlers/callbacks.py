@@ -1,13 +1,15 @@
 from aiogram import Router, html, F
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, BufferedInputFile
 from datetime import datetime, time, timedelta
 from sqlalchemy import func
+import csv
+from io import StringIO, BytesIO
 
 from databases import get_session, User, Expense
 from utils.keyboards import (get_main_menu, get_currency_keyboard, get_expenses_list_keyboard,
                               get_expense_details_keyboard, get_edit_field_keyboard,
                               get_category_keyboard, get_delete_confirmation_keyboard,
-                              get_description_edit_keyboard,
+                              get_description_edit_keyboard, get_export_keyboard,
                               EXPENSE_CATEGORIES)
 from utils.currency import CURRENCY_SYMBOLS
 from aiogram.fsm.context import FSMContext
@@ -674,3 +676,87 @@ async def confirm_delete_expense(callback: CallbackQuery):
     
     await callback.message.edit_text(f"✅ Deleted: {amount:.2f} {category.capitalize()}")
     await callback.answer()
+
+
+# Export callbacks
+@router.callback_query(F.data == 'export_cancel')
+async def export_cancel(callback: CallbackQuery):
+    await callback.message.edit_text('❌ Export cancelled')
+    await callback.answer()
+
+
+def build_csv_bytes(expenses: list, currency: str) -> bytes:
+    """Build CSV bytes for given expenses and currency."""
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['id', 'amount', 'category', 'description', 'created_at', 'currency'])
+    for e in expenses:
+        desc = e.description.strip().replace('\n', ' ') if e.description else ''
+        writer.writerow([e.id, f"{e.amount:.2f}", e.category, desc, e.created_at.strftime('%Y-%m-%d %H:%M:%S'), currency])
+    # Encode with UTF-8 with BOM (utf-8-sig) for better Excel compatibility with non-English text
+    return output.getvalue().encode('utf-8-sig')
+
+
+@router.callback_query(F.data == 'export_all')
+async def export_all(callback: CallbackQuery):
+    """Export all user expenses as CSV and send as document."""
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        if user is None:
+            await callback.message.answer("User not found! Use /start first!")
+            await callback.answer()
+            return
+
+        currency = user.currency or 'EUR'
+        expenses = session.query(Expense).filter(Expense.user_id == callback.from_user.id).order_by(Expense.created_at.desc()).all()
+
+        if not expenses:
+            await callback.message.answer("You don't have any expenses to export.")
+            await callback.answer()
+            return
+
+        csv_bytes = build_csv_bytes(expenses, currency)
+        bio = BytesIO(csv_bytes)
+        bio.seek(0)
+        filename = f"expenses_all_{callback.from_user.id}.csv"
+        file = BufferedInputFile(bio.read(), filename=filename)
+        await callback.message.answer_document(file)
+    await callback.answer("Export ready ✅")
+
+
+@router.callback_query(F.data == 'export_current_month')
+async def export_current_month(callback: CallbackQuery):
+    """Export current month's expenses as CSV and send as document."""
+    now = datetime.now()
+    # Start of current month at 00:00:00
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_end = now
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        if user is None:
+            await callback.message.answer("User not found! Use /start first!")
+            await callback.answer()
+            return
+
+        currency = user.currency or 'EUR'
+        expenses = session.query(Expense).filter(
+            Expense.user_id == callback.from_user.id,
+            Expense.created_at >= month_start,
+            Expense.created_at <= month_end
+        ).order_by(Expense.created_at.desc()).all()
+
+        if not expenses:
+            await callback.message.answer("You don't have any expenses this month to export.")
+            await callback.answer()
+            return
+
+        csv_bytes = build_csv_bytes(expenses, currency)
+        bio = BytesIO(csv_bytes)
+        bio.seek(0)
+        filename = f"expenses_{now.strftime('%Y_%m')}_{callback.from_user.id}.csv"
+        file = BufferedInputFile(bio.read(), filename=filename)
+        await callback.message.answer_document(file)
+    await callback.answer("Export ready ✅")
+
+
