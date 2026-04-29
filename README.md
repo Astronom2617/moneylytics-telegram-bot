@@ -65,6 +65,7 @@ python main.py
 - `/week` - Get weekly expense report with category breakdown
 - `/setcurrency` - Set preferred currency
 - `/categories` - View spending distribution by categories with charts
+- `/budget` - Manage daily and weekly budget limits
 - `/settings` - Manage your account settings (currency)
 
 ### Adding Expenses
@@ -96,7 +97,7 @@ moneylytics-bot/
 │ ├── callbacks.py # Inline callbacks (settings, currency selection)
 │ ├── expenses.py # Expense input handler
 │ ├── reports.py # Analytics and reports handlers
-│ └── budget.py # Budget features (in progress)
+│ └── budget.py # Budget features
 ├── utils/
 │ ├── init.py
 │ ├── keyboards.py # Reply/Inline keyboards
@@ -138,7 +139,7 @@ moneylytics-bot/
 - [x] Daily reports
 - [x] Weekly reports
 - [x] Category-based analytics with charts
-- [ ] Budget management (set limits, notifications)
+- [x] Budget management (set limits, notifications)
 - [ ] Edit/delete expenses
 - [ ] Data export
 - [ ] Language Change (EN/RU/UA)

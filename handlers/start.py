@@ -88,6 +88,7 @@ async def command_help_handler(message: Message):
     - /today - Daily expense report
     - /week - Weekly expense report
     - /categories - Expense breakdown with chart
+    - /budget - Manage budget limits
     - /settings - Account settings
     - /setcurrency - Set preferred currency
     - /help - Show this message
