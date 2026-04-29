@@ -140,8 +140,8 @@ moneylytics-bot/
 - [x] Weekly reports
 - [x] Category-based analytics with charts
 - [x] Budget management (set limits, notifications)
-- [ ] Edit/delete expenses
-- [ ] Data export
+- [x] Edit/delete expenses
+- [x] Data export
 - [ ] Language Change (EN/RU/UA)
 
 ## 📝 License
