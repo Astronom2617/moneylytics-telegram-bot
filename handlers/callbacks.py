@@ -4,10 +4,15 @@ from datetime import datetime, time, timedelta
 from sqlalchemy import func
 
 from databases import get_session, User, Expense
-from utils.keyboards import get_main_menu, get_currency_keyboard
+from utils.keyboards import (get_main_menu, get_currency_keyboard, get_expenses_list_keyboard,
+                              get_expense_details_keyboard, get_edit_field_keyboard,
+                              get_category_keyboard, get_delete_confirmation_keyboard,
+                              get_description_edit_keyboard,
+                              EXPENSE_CATEGORIES)
 from utils.currency import CURRENCY_SYMBOLS
 from aiogram.fsm.context import FSMContext
 from handlers.budget import BudgetStates
+from handlers.expenses import ExpenseEditStates
 
 router = Router()
 
@@ -235,3 +240,437 @@ async def process_weekly_budget(message: Message, state: FSMContext):
         state: The FSM context used to clear the waiting state after saving.
     """
     await set_budget(message, state, "weekly_budget", "Weekly budget")
+
+# Expense Management Callbacks
+
+@router.callback_query(F.data == "expense_cancel")
+async def cancel_expense_flow(callback: CallbackQuery, state: FSMContext):
+    """Cancel any ongoing expense edit flow."""
+    await state.clear()
+    await callback.message.edit_text("❌ Cancelled.")
+    await callback.answer()
+
+@router.callback_query(F.data == "expense_back")
+async def back_to_expense_list(callback: CallbackQuery):
+    """Go back to expense list."""
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        if user is None:
+            await callback.message.edit_text("User not found!")
+            await callback.answer()
+            return
+        
+        expenses = session.query(Expense).filter(
+            Expense.user_id == callback.from_user.id
+        ).order_by(Expense.created_at.desc()).limit(10).all()
+        
+        if not expenses:
+            await callback.message.edit_text("You don't have any expenses yet.")
+            await callback.answer()
+            return
+        
+        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user.currency else "€"
+        
+        text = f"{html.bold('📝 Your Recent Expenses:')}\n\n"
+        for i, exp in enumerate(expenses, 1):
+            if exp.description:
+                norm_desc = exp.description.strip().replace("\n", " ")
+                desc_text = f" - {html.quote(norm_desc)}"
+            else:
+                desc_text = ""
+            text += f"{i}. {exp.amount:.2f}{currency_symbol} {exp.category.capitalize()}{desc_text}\n"
+        
+        text += f"\n{html.italic('Select an expense to edit or delete:')}"
+        
+        await callback.message.edit_text(text, reply_markup=get_expenses_list_keyboard(expenses))
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("expense_select:"))
+async def select_expense(callback: CallbackQuery):
+    """Show details of selected expense with edit/delete options."""
+    expense_id = int(callback.data.split(":")[1])
+    
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == callback.from_user.id
+        ).first()
+        
+        if expense is None:
+            await callback.message.edit_text("❌ Expense not found or you don't have permission to view it.")
+            await callback.answer()
+            return
+        
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+        
+        if expense.description:
+            norm_desc = expense.description.strip().replace("\n", " ")
+            desc_text = f"\n📝 Description: {html.quote(norm_desc)}"
+        else:
+            desc_text = ""
+        
+        text = (
+            f"{html.bold('💰 Expense Details')}\n\n"
+            f"Amount: {expense.amount:.2f} {currency_symbol}\n"
+            f"Category: {expense.category.capitalize()}{desc_text}\n"
+            f"Date: {expense.created_at.strftime('%d.%m.%Y %H:%M')}"
+        )
+        
+        await callback.message.edit_text(text, reply_markup=get_expense_details_keyboard(expense_id))
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("expense_edit:"))
+async def edit_expense(callback: CallbackQuery):
+    """Show menu to choose which field to edit."""
+    expense_id = int(callback.data.split(":")[1])
+    
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == callback.from_user.id
+        ).first()
+        
+        if expense is None:
+            await callback.message.edit_text("❌ Expense not found or you don't have permission to edit it.")
+            await callback.answer()
+            return
+        
+        text = f"{html.bold('✏️ Choose what to edit:')}"
+        await callback.message.edit_text(text, reply_markup=get_edit_field_keyboard(expense_id))
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("expense_edit_amount:"))
+async def edit_amount_start(callback: CallbackQuery, state: FSMContext):
+    """Start editing amount - prompt user to enter new value."""
+    expense_id = int(callback.data.split(":")[1])
+    
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == callback.from_user.id
+        ).first()
+        
+        if expense is None:
+            await callback.message.edit_text("❌ Expense not found.")
+            await callback.answer()
+            return
+        
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+        
+        text = f"Current amount: {expense.amount:.2f} {currency_symbol}\n\nEnter new amount:"
+        await callback.message.edit_text(text)
+        await state.set_state(ExpenseEditStates.edit_amount)
+        await state.update_data(expense_id=expense_id)
+    await callback.answer()
+
+@router.message(ExpenseEditStates.edit_amount)
+async def process_edit_amount(message: Message, state: FSMContext):
+    """Receive and save the new amount."""
+    data = await state.get_data()
+    expense_id = data.get("expense_id")
+    
+    raw_text = message.text or ""
+    try:
+        new_amount = float(raw_text.replace(",", "."))
+    except ValueError:
+        await message.answer(f"❌ '{html.quote(raw_text)}' is not a valid number!")
+        return
+    
+    if new_amount <= 0:
+        await message.answer("❌ Amount must be positive!")
+        return
+    
+    if new_amount > 1_000_000:
+        await message.answer("⚠️ Amount is over 1,000,000!")
+        return
+    
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == message.from_user.id
+        ).first()
+        
+        if expense is None:
+            await message.answer("❌ Expense not found.")
+            await state.clear()
+            return
+        
+        expense.amount = new_amount
+        session.commit()
+        
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+    
+    await state.clear()
+    # Confirm and show updated expense details
+    await message.answer(f"✅ Amount updated to {new_amount:.2f} {currency_symbol}")
+    with get_session() as session:
+        updated = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == message.from_user.id
+        ).first()
+        if updated:
+            if updated.description:
+                norm_desc = updated.description.strip().replace("\n", " ")
+                desc_text = f"\n📝 Description: {html.quote(norm_desc)}"
+            else:
+                desc_text = ""
+            user = session.query(User).filter(User.id == message.from_user.id).first()
+            currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+            details = (
+                f"{html.bold('💰 Expense Details')}\n\n"
+                f"Amount: {updated.amount:.2f} {currency_symbol}\n"
+                f"Category: {updated.category.capitalize()}{desc_text}\n"
+                f"Date: {updated.created_at.strftime('%d.%m.%Y %H:%M')}"
+            )
+            await message.answer(details, reply_markup=get_expense_details_keyboard(expense_id))
+
+@router.callback_query(F.data.startswith("expense_edit_category:"))
+async def edit_category_start(callback: CallbackQuery, state: FSMContext):
+    """Start editing category - show category selection buttons."""
+    expense_id = int(callback.data.split(":")[1])
+    
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == callback.from_user.id
+        ).first()
+        
+        if expense is None:
+            await callback.message.edit_text("❌ Expense not found.")
+            await callback.answer()
+            return
+        
+        text = f"Current category: {expense.category.capitalize()}\n\n{html.bold('Select new category:')}"
+        await callback.message.edit_text(text, reply_markup=get_category_keyboard(expense_id))
+        await state.set_state(ExpenseEditStates.edit_category)
+        await state.update_data(expense_id=expense_id)
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("expense_category_select:"))
+async def process_category_select(callback: CallbackQuery, state: FSMContext):
+    """Receive and save the new category."""
+    new_category = callback.data.split(":")[1]
+    data = await state.get_data()
+    expense_id = data.get("expense_id")
+    
+    if new_category not in EXPENSE_CATEGORIES:
+        await callback.message.edit_text("❌ Invalid category selected.")
+        await callback.answer()
+        return
+    
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == callback.from_user.id
+        ).first()
+        
+        if expense is None:
+            await callback.message.edit_text("❌ Expense not found.")
+            await callback.answer()
+            await state.clear()
+            return
+        
+        expense.category = new_category
+        session.commit()
+    
+    await state.clear()
+    # Confirmation and show updated details
+    await callback.message.answer(f"✅ Category updated to {new_category.capitalize()}")
+    with get_session() as session:
+        updated = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == callback.from_user.id
+        ).first()
+        if updated:
+            if updated.description:
+                norm_desc = updated.description.strip().replace("\n", " ")
+                desc_text = f"\n📝 Description: {html.quote(norm_desc)}"
+            else:
+                desc_text = ""
+            user = session.query(User).filter(User.id == callback.from_user.id).first()
+            currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+            details = (
+                f"{html.bold('💰 Expense Details')}\n\n"
+                f"Amount: {updated.amount:.2f} {currency_symbol}\n"
+                f"Category: {updated.category.capitalize()}{desc_text}\n"
+                f"Date: {updated.created_at.strftime('%d.%m.%Y %H:%M')}"
+            )
+            # Edit the original message to show details with inline keyboard
+            await callback.message.edit_text(details, reply_markup=get_expense_details_keyboard(expense_id))
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("expense_edit_description:"))
+async def edit_description_start(callback: CallbackQuery, state: FSMContext):
+    """Start editing description - prompt user to enter new value."""
+    expense_id = int(callback.data.split(":")[1])
+    
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == callback.from_user.id
+        ).first()
+        
+        if expense is None:
+            await callback.message.edit_text("❌ Expense not found.")
+            await callback.answer()
+            return
+        
+        if expense.description:
+            norm_desc = expense.description.strip().replace("\n", " ")
+            current_desc = html.quote(norm_desc)
+        else:
+            current_desc = "(none)"
+        text = f"Current description: {current_desc}\n\nEnter new description (or send a new message to replace):"
+        await callback.message.edit_text(text, reply_markup=get_description_edit_keyboard(expense_id))
+        await state.set_state(ExpenseEditStates.edit_description)
+        await state.update_data(expense_id=expense_id)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("expense_clear_description:"))
+async def clear_description_callback(callback: CallbackQuery, state: FSMContext):
+    """Clear the description of the expense and show updated details."""
+    expense_id = int(callback.data.split(":")[1])
+
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == callback.from_user.id
+        ).first()
+
+        if expense is None:
+            await callback.message.edit_text("❌ Expense not found.")
+            await callback.answer()
+            return
+
+        expense.description = None
+        session.commit()
+
+        # Clear any FSM state related to editing
+        await state.clear()
+
+        # Confirmation and show updated details
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+        details = (
+            f"{html.bold('💰 Expense Details')}\n\n"
+            f"Amount: {expense.amount:.2f} {currency_symbol}\n"
+            f"Category: {expense.category.capitalize()}\n"
+            f"Date: {expense.created_at.strftime('%d.%m.%Y %H:%M')}"
+        )
+
+        await callback.message.edit_text("✅ Description cleared")
+        await callback.message.answer(details, reply_markup=get_expense_details_keyboard(expense_id))
+    await callback.answer()
+
+@router.message(ExpenseEditStates.edit_description)
+async def process_edit_description(message: Message, state: FSMContext):
+    """Receive and save the new description."""
+    data = await state.get_data()
+    expense_id = data.get("expense_id")
+    
+    # Safely handle text: strip whitespace, set to None if empty
+    raw_text = message.text or ""
+    stripped_text = raw_text.strip()
+    new_description = stripped_text if stripped_text else None
+    
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == message.from_user.id
+        ).first()
+        
+        if expense is None:
+            await message.answer("❌ Expense not found.")
+            await state.clear()
+            return
+        
+        expense.description = new_description
+        session.commit()
+    
+    await state.clear()
+    # Confirmation and show updated details
+    if new_description:
+        await message.answer(f"✅ Description updated to: {html.quote(new_description)}")
+    else:
+        await message.answer("✅ Description cleared")
+
+    with get_session() as session:
+        updated = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == message.from_user.id
+        ).first()
+        if updated:
+            if updated.description:
+                norm_desc = updated.description.strip().replace("\n", " ")
+                desc_text = f"\n📝 Description: {html.quote(norm_desc)}"
+            else:
+                desc_text = ""
+            details = (
+                f"{html.bold('💰 Expense Details')}\n\n"
+                f"Amount: {updated.amount:.2f} {CURRENCY_SYMBOLS.get((session.query(User).filter(User.id == message.from_user.id).first() and session.query(User).filter(User.id == message.from_user.id).first().currency) or 'EUR', '€')}\n"
+                f"Category: {updated.category.capitalize()}{desc_text}\n"
+                f"Date: {updated.created_at.strftime('%d.%m.%Y %H:%M')}"
+            )
+            await message.answer(details, reply_markup=get_expense_details_keyboard(expense_id))
+
+@router.callback_query(F.data.startswith("expense_delete:"))
+async def delete_expense(callback: CallbackQuery):
+    """Show delete confirmation dialog."""
+    expense_id = int(callback.data.split(":")[1])
+    
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == callback.from_user.id
+        ).first()
+        
+        if expense is None:
+            await callback.message.edit_text("❌ Expense not found or you don't have permission to delete it.")
+            await callback.answer()
+            return
+        
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+        
+        if expense.description:
+            norm_desc = expense.description.strip().replace("\n", " ")
+            desc_text = f" - {html.quote(norm_desc)}"
+        else:
+            desc_text = ""
+        text = (
+            f"{html.bold('⚠️ Delete this expense?')}\n\n"
+            f"{expense.amount:.2f} {currency_symbol} {expense.category.capitalize()}{desc_text}\n\n"
+            f"This action cannot be undone."
+        )
+        
+        await callback.message.edit_text(text, reply_markup=get_delete_confirmation_keyboard(expense_id))
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("expense_confirm_delete:"))
+async def confirm_delete_expense(callback: CallbackQuery):
+    """Delete the expense."""
+    expense_id = int(callback.data.split(":")[1])
+    
+    with get_session() as session:
+        expense = session.query(Expense).filter(
+            Expense.id == expense_id,
+            Expense.user_id == callback.from_user.id
+        ).first()
+        
+        if expense is None:
+            await callback.message.edit_text("❌ Expense not found.")
+            await callback.answer()
+            return
+        
+        amount = expense.amount
+        category = expense.category
+        
+        session.delete(expense)
+        session.commit()
+    
+    await callback.message.edit_text(f"✅ Deleted: {amount:.2f} {category.capitalize()}")
+    await callback.answer()
