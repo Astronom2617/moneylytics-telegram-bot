@@ -94,14 +94,14 @@ async def set_budget(message: Message, state: FSMContext, field: str, label: str
         field: Database field name ("daily_budget" or "weekly_budget").
         label: Display label for the response ("Daily budget" or "Weekly budget").
     """
-    text = message.text
+    raw_text = message.text
     try:
-        text = float(text.replace(",", "."))
+        amount = float(raw_text.replace(",", "."))
     except ValueError:
-        await message.answer(f"'{text}' is not a number!")
+        await message.answer(f"'{raw_text}' is not a number!")
         return
 
-    if text <= 0:
+    if amount <= 0:
         await message.answer("❌ Budget must be positive!")
         return
 
@@ -115,14 +115,14 @@ async def set_budget(message: Message, state: FSMContext, field: str, label: str
                 currency="EUR",
             )
             session.add(user)
-        setattr(user, field, text)
+        setattr(user, field, amount)
         session.commit()
         currency = user.currency or "EUR"
 
     await state.clear()
 
     await message.answer(html.bold(
-        f"{label} set to {text:.2f} {CURRENCY_SYMBOLS.get(currency, currency)} ✅"
+        f"{label} set to {amount:.2f} {CURRENCY_SYMBOLS.get(currency, currency)} ✅"
     ))
 
 async def clear_budget(callback: CallbackQuery, field: str, label: str):
@@ -235,4 +235,3 @@ async def process_weekly_budget(message: Message, state: FSMContext):
         state: The FSM context used to clear the waiting state after saving.
     """
     await set_budget(message, state, "weekly_budget", "Weekly budget")
-
