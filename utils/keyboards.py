@@ -7,7 +7,7 @@ def get_main_menu() -> ReplyKeyboardMarkup:
             [KeyboardButton(text='📊 Today'), KeyboardButton(text='📅 Week')],
             [KeyboardButton(text='📈 Categories'), KeyboardButton(text='💰 Budget')],
             [KeyboardButton(text='⚙️ Settings'), KeyboardButton(text='ℹ️ Help')],
-            [KeyboardButton(text='📝 My Expenses')],
+            [KeyboardButton(text='📝 My Expenses'), KeyboardButton(text='📤 Export')],
         ],
         resize_keyboard=True,
         input_field_placeholder='Choose an action'
@@ -184,6 +184,15 @@ def get_description_edit_keyboard(expense_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🗑️ Clear description", callback_data=f"expense_clear_description:{expense_id}"),
             InlineKeyboardButton(text="❌ Cancel", callback_data=f"expense_select:{expense_id}")
         ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_export_keyboard() -> InlineKeyboardMarkup:
+    """Inline keyboard for export options."""
+    keyboard = [
+        [InlineKeyboardButton(text='Export current month', callback_data='export_current_month')],
+        [InlineKeyboardButton(text='Export all expenses', callback_data='export_all')],
+        [InlineKeyboardButton(text='❌ Cancel', callback_data='export_cancel')],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
