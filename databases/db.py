@@ -7,6 +7,69 @@ engine = create_engine(DATABASE_URL, echo=False)
 
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
+def _normalize_legacy_categories(conn):
+    """
+    Normalize legacy non-canonical category values in existing Expense records
+    to canonical values: food, transport, housing, entertainment, other.
+    Mapping is idempotent and can be run safely multiple times.
+    """
+    # Legacy -> Canonical category mappings
+    legacy_mappings = {
+        # Russian names
+        'еда': 'food',
+        'пища': 'food',
+        'пицца': 'food',
+        'pizza': 'food',
+        
+        'транспорт': 'transport',
+        'uber': 'transport',
+        'bolt': 'transport',
+        'taxi': 'transport',
+        'bus': 'transport',
+        'metro': 'transport',
+        'train': 'transport',
+        
+        'жилье': 'housing',
+        'жильё': 'housing',
+        'rent': 'housing',
+        'water': 'housing',
+        'electricity': 'housing',
+        'internet': 'housing',
+        'ikea': 'housing',
+        
+        'развлечения': 'entertainment',
+        'netflix': 'entertainment',
+        'spotify': 'entertainment',
+        'cinema': 'entertainment',
+        'steam': 'entertainment',
+        'bowling': 'entertainment',
+        
+        'другое': 'other',
+    }
+    
+    # Build CASE statement for all legacy mappings
+    case_conditions = []
+    for legacy, canonical in legacy_mappings.items():
+        case_conditions.append(f"WHEN LOWER(category) = '{legacy.lower()}' THEN '{canonical}'")
+    
+    case_statement = '\n    '.join(case_conditions)
+    
+    # Update query: normalize known legacy values and normalize canonical to lowercase
+    normalize_query = f"""
+    UPDATE expenses
+    SET category = CASE
+        {case_statement}
+        -- If category is already canonical, normalize to lowercase
+        WHEN LOWER(category) IN ('food', 'transport', 'housing', 'entertainment', 'other')
+            THEN LOWER(category)
+        -- For anything else that is not canonical, default to 'other'
+        ELSE 'other'
+    END
+    WHERE category IS NOT NULL
+    """
+    
+    conn.execute(text(normalize_query))
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     inspector = inspect(engine)
@@ -32,6 +95,8 @@ def init_db():
                 WHERE currency IS NULL OR currency = ''
                 """
             ))
+            # Normalize legacy non-canonical category values to canonical ones
+            _normalize_legacy_categories(conn)
 
 def get_session() -> Session:
     return SessionLocal()
