@@ -6,6 +6,7 @@ from databases import get_session, User
 from utils.keyboards import get_main_menu, get_settings_keyboard
 from handlers.onboarding import start_onboarding
 from utils.currency import CURRENCY_MAP
+from utils.translations import detect_language, get_user_language, text_options, t
 
 router = Router()
 
@@ -21,12 +22,13 @@ async def command_start_handler(message: Message) -> None:
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
         if user:
+            lang = get_user_language(user, detect_language(message.from_user.language_code))
             await message.answer(
-                f"Welcome back, {html.bold(message.from_user.full_name)}!",
-                reply_markup=get_main_menu()
+                t(lang, "start.welcome_back", name=html.bold(message.from_user.full_name)),
+                reply_markup=get_main_menu(lang)
             )
         else:
-            await start_onboarding(message)
+            await start_onboarding(message, detect_language(message.from_user.language_code))
 
 
 # Set currency
@@ -38,9 +40,12 @@ async def command_set_currency_handler(message: Message):
         message: The incoming Telegram message containing the currency code.
     """
     parts = message.text.split()
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
 
     if len(parts) < 2:
-        await message.answer("Usage: /setcurrency EUR")
+        await message.answer(t(lang, "currency.choose"))
         return
 
     user_input = parts[1].upper()
@@ -48,7 +53,7 @@ async def command_set_currency_handler(message: Message):
     user_currency = CURRENCY_MAP.get(user_input)
 
     if not user_currency:
-        await message.answer("Unknown currency! Supported: EUR, USD, UAH, GBP")
+        await message.answer(t(lang, "currency.unknown", supported="EUR, USD, UAH, GBP"))
         return
 
     with get_session() as session:
@@ -58,60 +63,39 @@ async def command_set_currency_handler(message: Message):
             user.currency = user_currency
             session.commit()
 
-            await message.answer(f"Successfully set {user_currency} currency!")
+            await message.answer(t(lang, "currency.updated", currency=user_currency))
         else:
-            await message.answer(f"User not found! Use /start first!")
+            await message.answer(t(lang, "common.profile_missing"))
 
 
 # Help
 @router.message(Command("help"))
-@router.message(F.text == "ℹ️ Help")
+@router.message(F.text.in_(text_options("menu.help")))
 async def command_help_handler(message: Message):
     """Handle the /help command or the Help button, displaying usage instructions.
 
     Args:
         message: The incoming Telegram message.
     """
-    text = f"""
-    {html.bold('📖 How to use Moneylytics Bot')}
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
 
-    {html.bold('Adding expenses:')}
-    Send a message in format: {html.bold('amount category description')}
-
-    {html.bold('Examples:')}
-    - 25 food pizza
-    - 90 healthcare dental cleaning
-    - 5 coffee (description is optional)
-
-    {html.bold('Available commands:')}
-    - /start - Register in the bot
-    - /today - Daily expense report
-    - /week - Weekly expense report
-    - /categories - Expense breakdown with chart
-    - /budget - Manage budget limits
-    - /settings - Account settings
-    - /setcurrency - Set preferred currency
-    - /help - Show this message
-
-    {html.bold('Tips:')}
-    - Amount must be a number
-    - Category is required (e.g., food, transport, entertainment)
-    - Description is optional but recommended
-
-    {html.bold('Categories examples:')}
-    food, transport, healthcare, entertainment, shopping, bills, coffee, education, gym, other"""
+    text = t(lang, "help.text")
     await message.answer(text)
 
 
 # Settings
 @router.message(Command("settings"))
-@router.message(F.text == "⚙️ Settings")
+@router.message(F.text.in_(text_options("menu.settings")))
 async def button_settings(message: Message):
     """Handle the /settings command or the Settings button, showing the settings menu.
 
     Args:
         message: The incoming Telegram message.
     """
-    await message.answer(
-        "Choose your settings:", reply_markup=get_settings_keyboard()
-    )
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
+
+    await message.answer(t(lang, "settings.choose"), reply_markup=get_settings_keyboard(lang))

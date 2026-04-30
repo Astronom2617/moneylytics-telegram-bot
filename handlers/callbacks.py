@@ -7,16 +7,22 @@ from io import StringIO, BytesIO
 
 from databases import get_session, User, Expense
 from utils.keyboards import (get_main_menu, get_currency_keyboard, get_expenses_list_keyboard,
-                              get_expense_details_keyboard, get_edit_field_keyboard,
-                              get_category_keyboard, get_delete_confirmation_keyboard,
-                              get_description_edit_keyboard, get_export_keyboard,
-                              EXPENSE_CATEGORIES)
+                             get_expense_details_keyboard, get_edit_field_keyboard,
+                             get_category_keyboard, get_delete_confirmation_keyboard,
+                             get_description_edit_keyboard,
+                             EXPENSE_CATEGORIES, get_language_keyboard)
 from utils.currency import CURRENCY_SYMBOLS
 from aiogram.fsm.context import FSMContext
 from handlers.budget import BudgetStates
 from handlers.expenses import ExpenseEditStates
+from utils.translations import detect_language, get_user_language, t, t_category
 
 router = Router()
+
+
+def get_currency_symbol(currency: str | None) -> str:
+    code = currency or "EUR"
+    return CURRENCY_SYMBOLS.get(code, code)
 
 def get_budget_periods() -> tuple[datetime, datetime, datetime, datetime]:
     """Get date ranges for today and the current week."""
@@ -36,15 +42,21 @@ async def process_settings_selection(callback: CallbackQuery):
         callback: The callback query containing the selected setting identifier.
     """
     settings = callback.data.split(":")[1]
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
     if settings == "cur":
         await callback.message.edit_text(
-            "Choose your currency.",
+            t(lang, "settings.currency"),
             reply_markup=get_currency_keyboard()
         )
     elif settings == "lang":
-        await callback.message.edit_text("Language is under development 🚧")
+        await callback.message.edit_text(
+            t(lang, "settings.language"),
+            reply_markup=get_language_keyboard(lang),
+        )
     else:
-        await callback.message.edit_text("Unknown setting")
+        await callback.message.edit_text(t(lang, "common.unknown_setting"))
 
 # Callback for changing currency
 @router.callback_query(F.data.startswith("currency_"))
@@ -59,30 +71,31 @@ async def process_currency_selection(callback: CallbackQuery):
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         was_empty = (user is None) or (user.currency is None) or (user.currency == "")
         if user is None:
+            language = detect_language(callback.from_user.language_code)
             new_user = User(
                 id=callback.from_user.id,
                 username=callback.from_user.username,
                 first_name=callback.from_user.first_name,
                 currency=currency,
+                language=language,
             )
             session.add(new_user)
+            lang = language
         else:
             user.currency = currency
+            if not getattr(user, "language", None):
+                user.language = detect_language(callback.from_user.language_code)
+            lang = get_user_language(user, detect_language(callback.from_user.language_code))
 
         session.commit()
 
         await callback.message.answer(
-        f"✅ Great! Your currency is set to {CURRENCY_SYMBOLS.get(currency)}.",
-        reply_markup = get_main_menu()
-    )
+            t(lang, "currency.updated", currency=CURRENCY_SYMBOLS.get(currency, currency)),
+            reply_markup=get_main_menu(lang)
+        )
 
     if was_empty:
-        text_mini_instruction = f"""
-            {html.bold('📖 How to add expenses:')}
-            Send a message in format:
-            {html.code('amount category description')}
-            Example: {html.code('500 food pizza')}
-            """
+        text_mini_instruction = t(lang, "start.add_expenses_hint")
 
         await callback.message.answer(text_mini_instruction)
 
@@ -102,34 +115,38 @@ async def set_budget(message: Message, state: FSMContext, field: str, label: str
         label: Display label for the response ("Daily budget" or "Weekly budget").
     """
     raw_text = message.text
+    lang = detect_language(message.from_user.language_code)
     try:
         amount = float(raw_text.replace(",", "."))
     except ValueError:
-        await message.answer(f"'{raw_text}' is not a number!")
+        await message.answer(t(lang, "budget.invalid_number", value=html.quote(raw_text)))
         return
 
     if amount <= 0:
-        await message.answer("❌ Budget must be positive!")
+        await message.answer(t(lang, "budget.amount_positive"))
         return
 
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
         if user is None:
+            language = detect_language(message.from_user.language_code)
             user = User(
                 id=message.from_user.id,
                 username=message.from_user.username,
                 first_name=message.from_user.first_name,
                 currency="EUR",
+                language=language,
             )
             session.add(user)
         setattr(user, field, amount)
         session.commit()
         currency = user.currency or "EUR"
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
 
     await state.clear()
 
     await message.answer(html.bold(
-        f"{label} set to {amount:.2f} {CURRENCY_SYMBOLS.get(currency, currency)} ✅"
+        t(lang, "budget.set", label=label, amount=f"{amount:.2f}", currency=CURRENCY_SYMBOLS.get(currency, currency))
     ))
 
 async def clear_budget(callback: CallbackQuery, field: str, label: str):
@@ -137,13 +154,14 @@ async def clear_budget(callback: CallbackQuery, field: str, label: str):
     with get_session() as session:
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         if user is None:
-            await callback.message.answer("User not found! Use /start first!")
+            await callback.message.answer(t(detect_language(callback.from_user.language_code), "common.profile_missing"))
             await callback.answer()
             return
         setattr(user, field, None)
         session.commit()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
 
-    await callback.message.answer(f"{label} cleared ✅")
+    await callback.message.answer(t(lang, "budget.cleared", label=label))
     await callback.answer()
 
 @router.callback_query(F.data == "budget_view")
@@ -154,10 +172,11 @@ async def process_budget_view(callback: CallbackQuery):
     with get_session() as session:
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         if user is None:
-            await callback.message.answer("User not found! Use /start first!")
+            await callback.message.answer(t(detect_language(callback.from_user.language_code), "common.profile_missing"))
             await callback.answer()
             return
 
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
         currency = user.currency or "EUR"
         currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
 
@@ -173,15 +192,15 @@ async def process_budget_view(callback: CallbackQuery):
             Expense.created_at <= week_end
         ).scalar() or 0.0
 
-    daily_limit = f"{user.daily_budget:.2f} {currency_symbol}" if user.daily_budget else "Not set"
-    weekly_limit = f"{user.weekly_budget:.2f} {currency_symbol}" if user.weekly_budget else "Not set"
+    daily_limit = f"{user.daily_budget:.2f} {currency_symbol}" if user.daily_budget else t(lang, "budget.not_set")
+    weekly_limit = f"{user.weekly_budget:.2f} {currency_symbol}" if user.weekly_budget else t(lang, "budget.not_set")
 
     report = (
-        f"{html.bold('💰 Budget overview')}\n\n"
-        f"📅 Daily limit: {daily_limit}\n"
-        f"Spent today: {daily_total:.2f} {currency_symbol}\n\n"
-        f"📆 Weekly limit: {weekly_limit}\n"
-        f"Spent this week: {weekly_total:.2f} {currency_symbol}"
+        f"{html.bold(t(lang, 'budget.overview_title'))}\n\n"
+        f"{t(lang, 'budget.daily_limit_label')}: {daily_limit}\n"
+        f"{t(lang, 'budget.spent_today_label')}: {daily_total:.2f} {currency_symbol}\n\n"
+        f"{t(lang, 'budget.weekly_limit_label')}: {weekly_limit}\n"
+        f"{t(lang, 'budget.spent_week_label')}: {weekly_total:.2f} {currency_symbol}"
     )
 
     await callback.message.answer(report)
@@ -190,12 +209,18 @@ async def process_budget_view(callback: CallbackQuery):
 @router.callback_query(F.data == "budget_reset_daily")
 async def process_budget_reset_daily(callback: CallbackQuery):
     """Clear the user's daily budget."""
-    await clear_budget(callback, "daily_budget", "Daily budget")
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
+    await clear_budget(callback, "daily_budget", t(lang, "budget.daily"))
 
 @router.callback_query(F.data == "budget_reset_weekly")
 async def process_budget_reset_weekly(callback: CallbackQuery):
     """Clear the user's weekly budget."""
-    await clear_budget(callback, "weekly_budget", "Weekly budget")
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
+    await clear_budget(callback, "weekly_budget", t(lang, "budget.weekly"))
 
 # Setting daily budget
 @router.callback_query(F.data.startswith("budget_daily"))
@@ -207,7 +232,10 @@ async def process_budget_daily(callback: CallbackQuery, state: FSMContext):
         state: The FSM context used to set the waiting state.
     """
     await state.set_state(BudgetStates.waiting_for_daily_budget)
-    await callback.message.answer("Enter your daily budget amount:")
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
+    await callback.message.answer(t(lang, "budget.enter_daily"))
     await callback.answer()
 
 @router.message(BudgetStates.waiting_for_daily_budget)
@@ -218,7 +246,11 @@ async def process_daily_budget(message: Message, state: FSMContext):
         message: The incoming Telegram message containing the budget value.
         state: The FSM context used to clear the waiting state after saving.
     """
-    await set_budget(message, state, "daily_budget", "Daily budget")
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
+
+    await set_budget(message, state, "daily_budget", t(lang, "budget.daily"))
 
 # Setting weekly budget
 @router.callback_query(F.data.startswith("budget_weekly"))
@@ -230,7 +262,10 @@ async def process_budget_weekly(callback: CallbackQuery, state: FSMContext):
         state: The FSM context used to set the waiting state.
     """
     await state.set_state(BudgetStates.waiting_for_weekly_budget)
-    await callback.message.answer("Enter your weekly budget amount:")
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
+    await callback.message.answer(t(lang, "budget.enter_weekly"))
     await callback.answer()
 
 @router.message(BudgetStates.waiting_for_weekly_budget)
@@ -241,7 +276,40 @@ async def process_weekly_budget(message: Message, state: FSMContext):
         message: The incoming Telegram message containing the budget value.
         state: The FSM context used to clear the waiting state after saving.
     """
-    await set_budget(message, state, "weekly_budget", "Weekly budget")
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
+
+    await set_budget(message, state, "weekly_budget", t(lang, "budget.weekly"))
+
+@router.callback_query(F.data == "lang_en")
+@router.callback_query(F.data == "lang_ru")
+@router.callback_query(F.data == "lang_uk")
+async def process_language_selection(callback: CallbackQuery):
+    """Store the selected language and refresh the main menu."""
+    new_lang = callback.data.split("_")[1]
+    if new_lang not in ("en", "ru", "uk"):
+        await callback.answer()
+        return
+
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        if user is None:
+            user = User(
+                id=callback.from_user.id,
+                username=callback.from_user.username,
+                first_name=callback.from_user.first_name,
+                currency="EUR",
+                language=new_lang,
+            )
+            session.add(user)
+        else:
+            user.language = new_lang
+        session.commit()
+
+    await callback.message.edit_text(t(new_lang, "language.updated"))
+    await callback.message.answer(t(new_lang, "settings.choose"), reply_markup=get_main_menu(new_lang))
+    await callback.answer()
 
 # Expense Management Callbacks
 
@@ -249,7 +317,10 @@ async def process_weekly_budget(message: Message, state: FSMContext):
 async def cancel_expense_flow(callback: CallbackQuery, state: FSMContext):
     """Cancel any ongoing expense edit flow."""
     await state.clear()
-    await callback.message.edit_text("❌ Cancelled.")
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
+    await callback.message.edit_text(t(lang, "expense.cancelled"))
     await callback.answer()
 
 @router.callback_query(F.data == "expense_back")
@@ -258,33 +329,32 @@ async def back_to_expense_list(callback: CallbackQuery):
     with get_session() as session:
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         if user is None:
-            await callback.message.edit_text("User not found!")
+            await callback.message.edit_text(t(detect_language(callback.from_user.language_code), "common.profile_missing"))
             await callback.answer()
             return
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
         
         expenses = session.query(Expense).filter(
             Expense.user_id == callback.from_user.id
         ).order_by(Expense.created_at.desc()).limit(10).all()
         
         if not expenses:
-            await callback.message.edit_text("You don't have any expenses yet.")
+            await callback.message.edit_text(t(lang, "expenses.empty"))
             await callback.answer()
             return
         
-        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user.currency else "€"
-        
-        text = f"{html.bold('📝 Your Recent Expenses:')}\n\n"
+        text = f"{html.bold(t(lang, 'expenses.title'))}\n\n"
         for i, exp in enumerate(expenses, 1):
             if exp.description:
                 norm_desc = exp.description.strip().replace("\n", " ")
                 desc_text = f" - {html.quote(norm_desc)}"
             else:
                 desc_text = ""
-            text += f"{i}. {exp.amount:.2f}{currency_symbol} {exp.category.capitalize()}{desc_text}\n"
+            text += f"{i}. {exp.amount:.2f}{get_currency_symbol(exp.currency)} {t_category(lang, exp.category)}{desc_text}\n"
         
-        text += f"\n{html.italic('Select an expense to edit or delete:')}"
+        text += f"\n{html.italic(t(lang, 'expenses.select_prompt'))}"
         
-        await callback.message.edit_text(text, reply_markup=get_expenses_list_keyboard(expenses))
+        await callback.message.edit_text(text, reply_markup=get_expenses_list_keyboard(expenses, lang))
     await callback.answer()
 
 @router.callback_query(F.data.startswith("expense_select:"))
@@ -293,33 +363,34 @@ async def select_expense(callback: CallbackQuery):
     expense_id = int(callback.data.split(":")[1])
     
     with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
         expense = session.query(Expense).filter(
             Expense.id == expense_id,
             Expense.user_id == callback.from_user.id
         ).first()
         
         if expense is None:
-            await callback.message.edit_text("❌ Expense not found or you don't have permission to view it.")
+            await callback.message.edit_text(t(lang, "expense.not_found_permission"))
             await callback.answer()
             return
         
-        user = session.query(User).filter(User.id == callback.from_user.id).first()
-        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+        currency_symbol = get_currency_symbol(expense.currency)
         
         if expense.description:
             norm_desc = expense.description.strip().replace("\n", " ")
-            desc_text = f"\n📝 Description: {html.quote(norm_desc)}"
+            desc_text = f"\n{t(lang, 'expense.description_label')}: {html.quote(norm_desc)}"
         else:
             desc_text = ""
         
         text = (
-            f"{html.bold('💰 Expense Details')}\n\n"
-            f"Amount: {expense.amount:.2f} {currency_symbol}\n"
-            f"Category: {expense.category.capitalize()}{desc_text}\n"
-            f"Date: {expense.created_at.strftime('%d.%m.%Y %H:%M')}"
+            f"{html.bold(t(lang, 'expense.details_title'))}\n\n"
+            f"{t(lang, 'expense.amount_label')}: {expense.amount:.2f} {currency_symbol}\n"
+            f"{t(lang, 'expense.category_label')}: {t_category(lang, expense.category)}{desc_text}\n"
+            f"{t(lang, 'expense.date_label')}: {expense.created_at.strftime('%d.%m.%Y %H:%M')}"
         )
         
-        await callback.message.edit_text(text, reply_markup=get_expense_details_keyboard(expense_id))
+        await callback.message.edit_text(text, reply_markup=get_expense_details_keyboard(expense_id, lang))
     await callback.answer()
 
 @router.callback_query(F.data.startswith("expense_edit:"))
@@ -328,18 +399,20 @@ async def edit_expense(callback: CallbackQuery):
     expense_id = int(callback.data.split(":")[1])
     
     with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
         expense = session.query(Expense).filter(
             Expense.id == expense_id,
             Expense.user_id == callback.from_user.id
         ).first()
         
         if expense is None:
-            await callback.message.edit_text("❌ Expense not found or you don't have permission to edit it.")
+            await callback.message.edit_text(t(lang, "expense.not_found_permission"))
             await callback.answer()
             return
         
-        text = f"{html.bold('✏️ Choose what to edit:')}"
-        await callback.message.edit_text(text, reply_markup=get_edit_field_keyboard(expense_id))
+        text = f"{html.bold(t(lang, 'expense.choose_edit_field'))}"
+        await callback.message.edit_text(text, reply_markup=get_edit_field_keyboard(expense_id, lang))
     await callback.answer()
 
 @router.callback_query(F.data.startswith("expense_edit_amount:"))
@@ -348,20 +421,21 @@ async def edit_amount_start(callback: CallbackQuery, state: FSMContext):
     expense_id = int(callback.data.split(":")[1])
     
     with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
         expense = session.query(Expense).filter(
             Expense.id == expense_id,
             Expense.user_id == callback.from_user.id
         ).first()
         
         if expense is None:
-            await callback.message.edit_text("❌ Expense not found.")
+            await callback.message.edit_text(t(lang, "expense.not_found"))
             await callback.answer()
             return
         
-        user = session.query(User).filter(User.id == callback.from_user.id).first()
-        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+        currency_symbol = get_currency_symbol(expense.currency)
         
-        text = f"Current amount: {expense.amount:.2f} {currency_symbol}\n\nEnter new amount:"
+        text = t(lang, "expense.current_amount_prompt", amount=f"{expense.amount:.2f}", currency=currency_symbol)
         await callback.message.edit_text(text)
         await state.set_state(ExpenseEditStates.edit_amount)
         await state.update_data(expense_id=expense_id)
@@ -373,19 +447,23 @@ async def process_edit_amount(message: Message, state: FSMContext):
     data = await state.get_data()
     expense_id = data.get("expense_id")
     
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
+    
     raw_text = message.text or ""
     try:
         new_amount = float(raw_text.replace(",", "."))
     except ValueError:
-        await message.answer(f"❌ '{html.quote(raw_text)}' is not a valid number!")
+        await message.answer(t(lang, "expense.invalid_number", value=html.quote(raw_text)))
         return
     
     if new_amount <= 0:
-        await message.answer("❌ Amount must be positive!")
+        await message.answer(t(lang, "expense.amount_positive"))
         return
     
     if new_amount > 1_000_000:
-        await message.answer("⚠️ Amount is over 1,000,000!")
+        await message.answer(t(lang, "expense.amount_too_large"))
         return
     
     with get_session() as session:
@@ -395,19 +473,18 @@ async def process_edit_amount(message: Message, state: FSMContext):
         ).first()
         
         if expense is None:
-            await message.answer("❌ Expense not found.")
+            await message.answer(t(lang, "expense.not_found"))
             await state.clear()
             return
         
         expense.amount = new_amount
         session.commit()
         
-        user = session.query(User).filter(User.id == message.from_user.id).first()
-        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+        currency_symbol = get_currency_symbol(expense.currency)
     
     await state.clear()
     # Confirm and show updated expense details
-    await message.answer(f"✅ Amount updated to {new_amount:.2f} {currency_symbol}")
+    await message.answer(t(lang, "expense.amount_updated", amount=f"{new_amount:.2f}", currency=currency_symbol))
     with get_session() as session:
         updated = session.query(Expense).filter(
             Expense.id == expense_id,
@@ -416,18 +493,17 @@ async def process_edit_amount(message: Message, state: FSMContext):
         if updated:
             if updated.description:
                 norm_desc = updated.description.strip().replace("\n", " ")
-                desc_text = f"\n📝 Description: {html.quote(norm_desc)}"
+                desc_text = f"\n{t(lang, 'expense.description_label')}: {html.quote(norm_desc)}"
             else:
                 desc_text = ""
-            user = session.query(User).filter(User.id == message.from_user.id).first()
-            currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+            currency_symbol = get_currency_symbol(updated.currency)
             details = (
-                f"{html.bold('💰 Expense Details')}\n\n"
-                f"Amount: {updated.amount:.2f} {currency_symbol}\n"
-                f"Category: {updated.category.capitalize()}{desc_text}\n"
-                f"Date: {updated.created_at.strftime('%d.%m.%Y %H:%M')}"
+                f"{html.bold(t(lang, 'expense.details_title'))}\n\n"
+                f"{t(lang, 'expense.amount_label')}: {updated.amount:.2f} {currency_symbol}\n"
+                f"{t(lang, 'expense.category_label')}: {t_category(lang, updated.category)}{desc_text}\n"
+                f"{t(lang, 'expense.date_label')}: {updated.created_at.strftime('%d.%m.%Y %H:%M')}"
             )
-            await message.answer(details, reply_markup=get_expense_details_keyboard(expense_id))
+            await message.answer(details, reply_markup=get_expense_details_keyboard(expense_id, lang))
 
 @router.callback_query(F.data.startswith("expense_edit_category:"))
 async def edit_category_start(callback: CallbackQuery, state: FSMContext):
@@ -435,18 +511,20 @@ async def edit_category_start(callback: CallbackQuery, state: FSMContext):
     expense_id = int(callback.data.split(":")[1])
     
     with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
         expense = session.query(Expense).filter(
             Expense.id == expense_id,
             Expense.user_id == callback.from_user.id
         ).first()
         
         if expense is None:
-            await callback.message.edit_text("❌ Expense not found.")
+            await callback.message.edit_text(t(lang, "expense.not_found"))
             await callback.answer()
             return
         
-        text = f"Current category: {expense.category.capitalize()}\n\n{html.bold('Select new category:')}"
-        await callback.message.edit_text(text, reply_markup=get_category_keyboard(expense_id))
+        text = t(lang, "expense.current_category_prompt", category=t_category(lang, expense.category))
+        await callback.message.edit_text(text, reply_markup=get_category_keyboard(expense_id, lang))
         await state.set_state(ExpenseEditStates.edit_category)
         await state.update_data(expense_id=expense_id)
     await callback.answer()
@@ -458,8 +536,12 @@ async def process_category_select(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     expense_id = data.get("expense_id")
     
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
+    
     if new_category not in EXPENSE_CATEGORIES:
-        await callback.message.edit_text("❌ Invalid category selected.")
+        await callback.message.edit_text(t(lang, "expense.invalid_category"))
         await callback.answer()
         return
     
@@ -470,7 +552,7 @@ async def process_category_select(callback: CallbackQuery, state: FSMContext):
         ).first()
         
         if expense is None:
-            await callback.message.edit_text("❌ Expense not found.")
+            await callback.message.edit_text(t(lang, "expense.not_found"))
             await callback.answer()
             await state.clear()
             return
@@ -480,7 +562,7 @@ async def process_category_select(callback: CallbackQuery, state: FSMContext):
     
     await state.clear()
     # Confirmation and show updated details
-    await callback.message.answer(f"✅ Category updated to {new_category.capitalize()}")
+    await callback.message.answer(t(lang, "expense.category_updated", category=t_category(lang, new_category)))
     with get_session() as session:
         updated = session.query(Expense).filter(
             Expense.id == expense_id,
@@ -489,19 +571,18 @@ async def process_category_select(callback: CallbackQuery, state: FSMContext):
         if updated:
             if updated.description:
                 norm_desc = updated.description.strip().replace("\n", " ")
-                desc_text = f"\n📝 Description: {html.quote(norm_desc)}"
+                desc_text = f"\n{t(lang, 'expense.description_label')}: {html.quote(norm_desc)}"
             else:
                 desc_text = ""
-            user = session.query(User).filter(User.id == callback.from_user.id).first()
-            currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+            currency_symbol = get_currency_symbol(updated.currency)
             details = (
-                f"{html.bold('💰 Expense Details')}\n\n"
-                f"Amount: {updated.amount:.2f} {currency_symbol}\n"
-                f"Category: {updated.category.capitalize()}{desc_text}\n"
-                f"Date: {updated.created_at.strftime('%d.%m.%Y %H:%M')}"
+                f"{html.bold(t(lang, 'expense.details_title'))}\n\n"
+                f"{t(lang, 'expense.amount_label')}: {updated.amount:.2f} {currency_symbol}\n"
+                f"{t(lang, 'expense.category_label')}: {t_category(lang, updated.category)}{desc_text}\n"
+                f"{t(lang, 'expense.date_label')}: {updated.created_at.strftime('%d.%m.%Y %H:%M')}"
             )
             # Edit the original message to show details with inline keyboard
-            await callback.message.edit_text(details, reply_markup=get_expense_details_keyboard(expense_id))
+            await callback.message.edit_text(details, reply_markup=get_expense_details_keyboard(expense_id, lang))
     await callback.answer()
 
 @router.callback_query(F.data.startswith("expense_edit_description:"))
@@ -510,13 +591,15 @@ async def edit_description_start(callback: CallbackQuery, state: FSMContext):
     expense_id = int(callback.data.split(":")[1])
     
     with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
         expense = session.query(Expense).filter(
             Expense.id == expense_id,
             Expense.user_id == callback.from_user.id
         ).first()
         
         if expense is None:
-            await callback.message.edit_text("❌ Expense not found.")
+            await callback.message.edit_text(t(lang, "expense.not_found"))
             await callback.answer()
             return
         
@@ -524,9 +607,9 @@ async def edit_description_start(callback: CallbackQuery, state: FSMContext):
             norm_desc = expense.description.strip().replace("\n", " ")
             current_desc = html.quote(norm_desc)
         else:
-            current_desc = "(none)"
-        text = f"Current description: {current_desc}\n\nEnter new description (or send a new message to replace):"
-        await callback.message.edit_text(text, reply_markup=get_description_edit_keyboard(expense_id))
+            current_desc = t(lang, "expense.none_label")
+        text = t(lang, "expense.current_description_prompt", description=current_desc)
+        await callback.message.edit_text(text, reply_markup=get_description_edit_keyboard(expense_id, lang))
         await state.set_state(ExpenseEditStates.edit_description)
         await state.update_data(expense_id=expense_id)
     await callback.answer()
@@ -538,13 +621,15 @@ async def clear_description_callback(callback: CallbackQuery, state: FSMContext)
     expense_id = int(callback.data.split(":")[1])
 
     with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
         expense = session.query(Expense).filter(
             Expense.id == expense_id,
             Expense.user_id == callback.from_user.id
         ).first()
 
         if expense is None:
-            await callback.message.edit_text("❌ Expense not found.")
+            await callback.message.edit_text(t(lang, "expense.not_found"))
             await callback.answer()
             return
 
@@ -555,17 +640,16 @@ async def clear_description_callback(callback: CallbackQuery, state: FSMContext)
         await state.clear()
 
         # Confirmation and show updated details
-        user = session.query(User).filter(User.id == callback.from_user.id).first()
-        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+        currency_symbol = get_currency_symbol(expense.currency)
         details = (
-            f"{html.bold('💰 Expense Details')}\n\n"
-            f"Amount: {expense.amount:.2f} {currency_symbol}\n"
-            f"Category: {expense.category.capitalize()}\n"
-            f"Date: {expense.created_at.strftime('%d.%m.%Y %H:%M')}"
+            f"{html.bold(t(lang, 'expense.details_title'))}\n\n"
+            f"{t(lang, 'expense.amount_label')}: {expense.amount:.2f} {currency_symbol}\n"
+            f"{t(lang, 'expense.category_label')}: {t_category(lang, expense.category)}\n"
+            f"{t(lang, 'expense.date_label')}: {expense.created_at.strftime('%d.%m.%Y %H:%M')}"
         )
 
-        await callback.message.edit_text("✅ Description cleared")
-        await callback.message.answer(details, reply_markup=get_expense_details_keyboard(expense_id))
+        await callback.message.edit_text(t(lang, "expense.description_cleared"))
+        await callback.message.answer(details, reply_markup=get_expense_details_keyboard(expense_id, lang))
     await callback.answer()
 
 @router.message(ExpenseEditStates.edit_description)
@@ -573,6 +657,10 @@ async def process_edit_description(message: Message, state: FSMContext):
     """Receive and save the new description."""
     data = await state.get_data()
     expense_id = data.get("expense_id")
+    
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
     
     # Safely handle text: strip whitespace, set to None if empty
     raw_text = message.text or ""
@@ -586,7 +674,7 @@ async def process_edit_description(message: Message, state: FSMContext):
         ).first()
         
         if expense is None:
-            await message.answer("❌ Expense not found.")
+            await message.answer(t(lang, "expense.not_found"))
             await state.clear()
             return
         
@@ -596,9 +684,9 @@ async def process_edit_description(message: Message, state: FSMContext):
     await state.clear()
     # Confirmation and show updated details
     if new_description:
-        await message.answer(f"✅ Description updated to: {html.quote(new_description)}")
+        await message.answer(t(lang, "expense.description_updated", description=html.quote(new_description)))
     else:
-        await message.answer("✅ Description cleared")
+        await message.answer(t(lang, "expense.description_cleared"))
 
     with get_session() as session:
         updated = session.query(Expense).filter(
@@ -608,16 +696,17 @@ async def process_edit_description(message: Message, state: FSMContext):
         if updated:
             if updated.description:
                 norm_desc = updated.description.strip().replace("\n", " ")
-                desc_text = f"\n📝 Description: {html.quote(norm_desc)}"
+                desc_text = f"\n{t(lang, 'expense.description_label')}: {html.quote(norm_desc)}"
             else:
                 desc_text = ""
+            currency_symbol = get_currency_symbol(updated.currency)
             details = (
-                f"{html.bold('💰 Expense Details')}\n\n"
-                f"Amount: {updated.amount:.2f} {CURRENCY_SYMBOLS.get((session.query(User).filter(User.id == message.from_user.id).first() and session.query(User).filter(User.id == message.from_user.id).first().currency) or 'EUR', '€')}\n"
-                f"Category: {updated.category.capitalize()}{desc_text}\n"
-                f"Date: {updated.created_at.strftime('%d.%m.%Y %H:%M')}"
+                f"{html.bold(t(lang, 'expense.details_title'))}\n\n"
+                f"{t(lang, 'expense.amount_label')}: {updated.amount:.2f} {currency_symbol}\n"
+                f"{t(lang, 'expense.category_label')}: {t_category(lang, updated.category)}{desc_text}\n"
+                f"{t(lang, 'expense.date_label')}: {updated.created_at.strftime('%d.%m.%Y %H:%M')}"
             )
-            await message.answer(details, reply_markup=get_expense_details_keyboard(expense_id))
+            await message.answer(details, reply_markup=get_expense_details_keyboard(expense_id, lang))
 
 @router.callback_query(F.data.startswith("expense_delete:"))
 async def delete_expense(callback: CallbackQuery):
@@ -625,18 +714,19 @@ async def delete_expense(callback: CallbackQuery):
     expense_id = int(callback.data.split(":")[1])
     
     with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
         expense = session.query(Expense).filter(
             Expense.id == expense_id,
             Expense.user_id == callback.from_user.id
         ).first()
         
         if expense is None:
-            await callback.message.edit_text("❌ Expense not found or you don't have permission to delete it.")
+            await callback.message.edit_text(t(lang, "expense.not_found_permission"))
             await callback.answer()
             return
         
-        user = session.query(User).filter(User.id == callback.from_user.id).first()
-        currency_symbol = CURRENCY_SYMBOLS.get(user.currency, "€") if user and user.currency else "€"
+        currency_symbol = get_currency_symbol(expense.currency)
         
         if expense.description:
             norm_desc = expense.description.strip().replace("\n", " ")
@@ -644,12 +734,12 @@ async def delete_expense(callback: CallbackQuery):
         else:
             desc_text = ""
         text = (
-            f"{html.bold('⚠️ Delete this expense?')}\n\n"
-            f"{expense.amount:.2f} {currency_symbol} {expense.category.capitalize()}{desc_text}\n\n"
-            f"This action cannot be undone."
+            f"{html.bold(t(lang, 'expense.delete_title'))}\n\n"
+            f"{expense.amount:.2f} {currency_symbol} {t_category(lang, expense.category)}{desc_text}\n\n"
+            f"{t(lang, 'expense.delete_warning')}"
         )
         
-        await callback.message.edit_text(text, reply_markup=get_delete_confirmation_keyboard(expense_id))
+        await callback.message.edit_text(text, reply_markup=get_delete_confirmation_keyboard(expense_id, lang))
     await callback.answer()
 
 @router.callback_query(F.data.startswith("expense_confirm_delete:"))
@@ -658,13 +748,15 @@ async def confirm_delete_expense(callback: CallbackQuery):
     expense_id = int(callback.data.split(":")[1])
     
     with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
         expense = session.query(Expense).filter(
             Expense.id == expense_id,
             Expense.user_id == callback.from_user.id
         ).first()
         
         if expense is None:
-            await callback.message.edit_text("❌ Expense not found.")
+            await callback.message.edit_text(t(lang, "expense.not_found"))
             await callback.answer()
             return
         
@@ -674,25 +766,30 @@ async def confirm_delete_expense(callback: CallbackQuery):
         session.delete(expense)
         session.commit()
     
-    await callback.message.edit_text(f"✅ Deleted: {amount:.2f} {category.capitalize()}")
+    await callback.message.edit_text(t(lang, "expense.deleted", amount=f"{amount:.2f}", category=t_category(lang, category)))
     await callback.answer()
 
 
 # Export callbacks
 @router.callback_query(F.data == 'export_cancel')
 async def export_cancel(callback: CallbackQuery):
-    await callback.message.edit_text('❌ Export cancelled')
+    with get_session() as session:
+        user = session.query(User).filter(User.id == callback.from_user.id).first()
+        lang = get_user_language(user, detect_language(callback.from_user.language_code))
+
+    await callback.message.edit_text(t(lang, 'export.cancelled'))
     await callback.answer()
 
 
-def build_csv_bytes(expenses: list, currency: str) -> bytes:
-    """Build CSV bytes for given expenses and currency."""
+def build_csv_bytes(expenses: list) -> bytes:
+    """Build CSV bytes for given expenses preserving row currency."""
     output = StringIO()
     writer = csv.writer(output)
     writer.writerow(['id', 'amount', 'category', 'description', 'created_at', 'currency'])
     for e in expenses:
         desc = e.description.strip().replace('\n', ' ') if e.description else ''
-        writer.writerow([e.id, f"{e.amount:.2f}", e.category, desc, e.created_at.strftime('%Y-%m-%d %H:%M:%S'), currency])
+        row_currency = e.currency if e.currency else 'EUR'
+        writer.writerow([e.id, f"{e.amount:.2f}", e.category, desc, e.created_at.strftime('%Y-%m-%d %H:%M:%S'), row_currency])
     # Encode with UTF-8 with BOM (utf-8-sig) for better Excel compatibility with non-English text
     return output.getvalue().encode('utf-8-sig')
 
@@ -703,25 +800,24 @@ async def export_all(callback: CallbackQuery):
     with get_session() as session:
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         if user is None:
-            await callback.message.answer("User not found! Use /start first!")
+            await callback.message.answer(t(detect_language(callback.from_user.language_code), "common.profile_missing"))
             await callback.answer()
             return
 
-        currency = user.currency or 'EUR'
         expenses = session.query(Expense).filter(Expense.user_id == callback.from_user.id).order_by(Expense.created_at.desc()).all()
 
         if not expenses:
-            await callback.message.answer("You don't have any expenses to export.")
+            await callback.message.answer(t(get_user_language(user, detect_language(callback.from_user.language_code)), "export.no_all"))
             await callback.answer()
             return
 
-        csv_bytes = build_csv_bytes(expenses, currency)
+        csv_bytes = build_csv_bytes(expenses)
         bio = BytesIO(csv_bytes)
         bio.seek(0)
         filename = f"expenses_all_{callback.from_user.id}.csv"
         file = BufferedInputFile(bio.read(), filename=filename)
         await callback.message.answer_document(file)
-    await callback.answer("Export ready ✅")
+    await callback.answer(t(get_user_language(user, detect_language(callback.from_user.language_code)), "export.ready"))
 
 
 @router.callback_query(F.data == 'export_current_month')
@@ -735,11 +831,10 @@ async def export_current_month(callback: CallbackQuery):
     with get_session() as session:
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         if user is None:
-            await callback.message.answer("User not found! Use /start first!")
+            await callback.message.answer(t(detect_language(callback.from_user.language_code), "common.profile_missing"))
             await callback.answer()
             return
 
-        currency = user.currency or 'EUR'
         expenses = session.query(Expense).filter(
             Expense.user_id == callback.from_user.id,
             Expense.created_at >= month_start,
@@ -747,16 +842,17 @@ async def export_current_month(callback: CallbackQuery):
         ).order_by(Expense.created_at.desc()).all()
 
         if not expenses:
-            await callback.message.answer("You don't have any expenses this month to export.")
+            await callback.message.answer(t(get_user_language(user, detect_language(callback.from_user.language_code)), "export.no_month"))
             await callback.answer()
             return
 
-        csv_bytes = build_csv_bytes(expenses, currency)
+        csv_bytes = build_csv_bytes(expenses)
         bio = BytesIO(csv_bytes)
         bio.seek(0)
         filename = f"expenses_{now.strftime('%Y_%m')}_{callback.from_user.id}.csv"
         file = BufferedInputFile(bio.read(), filename=filename)
         await callback.message.answer_document(file)
-    await callback.answer("Export ready ✅")
+
+    await callback.answer(t(get_user_language(user, detect_language(callback.from_user.language_code)), "export.ready"))
 
 

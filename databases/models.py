@@ -14,6 +14,7 @@ class User(Base):
     daily_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
     weekly_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
     currency: Mapped[str] = mapped_column(String(20), default="EUR", nullable=True)
+    language: Mapped[str] = mapped_column(String(10), default="en", nullable=False)
     daily_over_limit_count: Mapped[int] = mapped_column(Integer, default=0)
     weekly_over_limit_count: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -23,5 +24,6 @@ class Expense(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('users.id'))
     amount: Mapped[float] = mapped_column(Float)
     category: Mapped[str] = mapped_column(String(100))
+    currency: Mapped[str] = mapped_column(String(20), default="EUR", nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
