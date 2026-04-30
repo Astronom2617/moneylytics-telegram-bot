@@ -142,7 +142,7 @@ moneylytics-bot/
 - [x] Budget management (set limits, notifications)
 - [x] Edit/delete expenses
 - [x] Data export
-- [ ] Language Change (EN/RU/UA)
+- [x] Language Change (EN/RU/UA)
 
 ## 📝 License
 
