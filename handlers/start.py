@@ -1,6 +1,7 @@
 from aiogram import Router, html, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
+from aiogram.fsm.context import FSMContext
 
 from databases import get_session, User
 from utils.keyboards import get_main_menu, get_settings_keyboard
@@ -13,11 +14,11 @@ router = Router()
 
 # Start
 @router.message(CommandStart())
-async def command_start_handler(message: Message) -> None:
-    """Handle the /start command, greeting returning users or starting onboarding.
-
-    Args:
-        message: The incoming Telegram message.
+async def command_start_handler(message: Message, state: FSMContext) -> None:
+    """
+    /start command handler
+    - If user exists: show welcome back message
+    - If new user: start FSM-based onboarding (language selection only)
     """
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
@@ -28,17 +29,13 @@ async def command_start_handler(message: Message) -> None:
                 reply_markup=get_main_menu(lang)
             )
         else:
-            await start_onboarding(message, detect_language(message.from_user.language_code))
+            # Pass FSMContext to onboarding
+            await start_onboarding(message, state)
 
 
 # Set currency
 @router.message(Command("setcurrency"))
 async def command_set_currency_handler(message: Message):
-    """Handle the /setcurrency command to update the user's preferred currency.
-
-    Args:
-        message: The incoming Telegram message containing the currency code.
-    """
     parts = message.text.split()
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
@@ -49,7 +46,6 @@ async def command_set_currency_handler(message: Message):
         return
 
     user_input = parts[1].upper()
-
     user_currency = CURRENCY_MAP.get(user_input)
 
     if not user_currency:
@@ -58,11 +54,9 @@ async def command_set_currency_handler(message: Message):
 
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
-
         if user:
             user.currency = user_currency
             session.commit()
-
             await message.answer(t(lang, "currency.updated", currency=user_currency))
         else:
             await message.answer(t(lang, "common.profile_missing"))
@@ -72,28 +66,17 @@ async def command_set_currency_handler(message: Message):
 @router.message(Command("help"))
 @router.message(F.text.in_(text_options("menu.help")))
 async def command_help_handler(message: Message):
-    """Handle the /help command or the Help button, displaying usage instructions.
-
-    Args:
-        message: The incoming Telegram message.
-    """
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
         lang = get_user_language(user, detect_language(message.from_user.language_code))
 
-    text = t(lang, "help.text")
-    await message.answer(text)
+    await message.answer(t(lang, "help.text"))
 
 
 # Settings
 @router.message(Command("settings"))
 @router.message(F.text.in_(text_options("menu.settings")))
 async def button_settings(message: Message):
-    """Handle the /settings command or the Settings button, showing the settings menu.
-
-    Args:
-        message: The incoming Telegram message.
-    """
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
         lang = get_user_language(user, detect_language(message.from_user.language_code))

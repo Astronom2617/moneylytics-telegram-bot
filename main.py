@@ -8,6 +8,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from dotenv import load_dotenv
 from handlers.start import router
+from handlers.onboarding import router as onboarding_router
 from handlers.reports import router as reports_router
 from handlers.expenses import router as expenses_router
 from handlers.budget import router as budget_router
@@ -29,6 +30,7 @@ async def main() -> None:
     init_db()
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp.include_router(router)
+    dp.include_router(onboarding_router)
     dp.include_router(callbacks_router)
     dp.include_router(budget_router)
     dp.include_router(reports_router)

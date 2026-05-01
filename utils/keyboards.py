@@ -32,22 +32,29 @@ def get_settings_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     return settings_menu
 
 
-def get_language_keyboard(current_lang: str = "en") -> InlineKeyboardMarkup:
-    """Inline keyboard for selecting a preferred language."""
+def get_language_keyboard(current_lang: str | None = None) -> InlineKeyboardMarkup:
+    """Inline keyboard for selecting a preferred language.
+    current_lang=None means onboarding — no checkmarks shown.
+    Buttons show: "English 🇺🇸", "Русский 🇷🇺", "Українська 🇺🇦"
+    """
     keyboard = [
         [
             InlineKeyboardButton(
-                text=f"{'✅ ' if current_lang == 'en' else ''}{LANGUAGE_NAMES['en']}",
+                text=f"{'✅ ' if current_lang == 'en' else ''}English 🇺🇸",
                 callback_data='lang_en',
-            ),
+            )
+        ],
+        [
             InlineKeyboardButton(
-                text=f"{'✅ ' if current_lang == 'ru' else ''}{LANGUAGE_NAMES['ru']}",
+                text=f"{'✅ ' if current_lang == 'ru' else ''}Русский 🇷🇺",
                 callback_data='lang_ru',
-            ),
+            )
+        ],
+        [
             InlineKeyboardButton(
-                text=f"{'✅ ' if current_lang == 'uk' else ''}{LANGUAGE_NAMES['uk']}",
+                text=f"{'✅ ' if current_lang == 'uk' else ''}Українська 🇺🇦",
                 callback_data='lang_uk',
-            ),
+            )
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -96,22 +103,12 @@ EXPENSE_CATEGORIES = list(CANONICAL_CATEGORIES)
 
 # Expense Management Keyboards
 def get_expenses_list_keyboard(expenses: list, lang: str = "en") -> InlineKeyboardMarkup:
-    """Build keyboard with recent expenses as inline buttons for selection.
-
-    Args:
-        expenses: List of Expense objects to display.
-
-    Returns:
-        InlineKeyboardMarkup with expense buttons.
-    """
     keyboard = []
     for expense in expenses:
         amount = f"{expense.amount:.2f}"
         category = t_category(lang, expense.category)
         if expense.description:
-            # Strip whitespace and replace line breaks
             desc_clean = expense.description.strip().replace("\n", " ")
-            # Truncate and add ... if needed
             desc_text = f" - {desc_clean[:15]}..." if len(desc_clean) > 15 else f" - {desc_clean}"
         else:
             desc_text = ""
@@ -128,14 +125,6 @@ def get_expenses_list_keyboard(expenses: list, lang: str = "en") -> InlineKeyboa
 
 
 def get_expense_details_keyboard(expense_id: int, lang: str = "en") -> InlineKeyboardMarkup:
-    """Build keyboard for expense detail view with edit/delete options.
-
-    Args:
-        expense_id: ID of the expense.
-
-    Returns:
-        InlineKeyboardMarkup with edit and delete buttons.
-    """
     keyboard = [
         [
             InlineKeyboardButton(text=t(lang, "keyboard.edit"), callback_data=f"expense_edit:{expense_id}"),
@@ -147,14 +136,6 @@ def get_expense_details_keyboard(expense_id: int, lang: str = "en") -> InlineKey
 
 
 def get_edit_field_keyboard(expense_id: int, lang: str = "en") -> InlineKeyboardMarkup:
-    """Build keyboard to choose which field to edit.
-
-    Args:
-        expense_id: ID of the expense.
-
-    Returns:
-        InlineKeyboardMarkup with field selection buttons.
-    """
     keyboard = [
         [InlineKeyboardButton(text=t(lang, "keyboard.edit_amount"), callback_data=f"expense_edit_amount:{expense_id}")],
         [InlineKeyboardButton(text=t(lang, "keyboard.edit_category"),
@@ -167,14 +148,6 @@ def get_edit_field_keyboard(expense_id: int, lang: str = "en") -> InlineKeyboard
 
 
 def get_category_keyboard(expense_id: int, lang: str = "en") -> InlineKeyboardMarkup:
-    """Build keyboard with fixed category options for editing.
-
-    Args:
-        expense_id: ID of the expense being edited.
-
-    Returns:
-        InlineKeyboardMarkup with category buttons.
-    """
     keyboard = []
     for i, category in enumerate(EXPENSE_CATEGORIES):
         if i % 2 == 0:
@@ -192,7 +165,6 @@ def get_category_keyboard(expense_id: int, lang: str = "en") -> InlineKeyboardMa
 
 
 def get_pending_expense_category_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Build keyboard for category clarification before a new expense is saved."""
     keyboard = []
     for i, category in enumerate(EXPENSE_CATEGORIES):
         if i % 2 == 0:
@@ -209,7 +181,6 @@ def get_pending_expense_category_keyboard(lang: str = "en") -> InlineKeyboardMar
 
 
 def get_pending_expense_currency_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Build keyboard for currency clarification before a new expense is saved."""
     builder = InlineKeyboardBuilder()
     builder.button(text='€ EUR', callback_data='pending_expense_currency:EUR')
     builder.button(text='₴ UAH', callback_data='pending_expense_currency:UAH')
@@ -221,14 +192,6 @@ def get_pending_expense_currency_keyboard(lang: str = "en") -> InlineKeyboardMar
 
 
 def get_delete_confirmation_keyboard(expense_id: int, lang: str = "en") -> InlineKeyboardMarkup:
-    """Build keyboard for delete confirmation.
-
-    Args:
-        expense_id: ID of the expense to delete.
-
-    Returns:
-        InlineKeyboardMarkup with confirmation buttons.
-    """
     keyboard = [
         [
             InlineKeyboardButton(text=t(lang, "keyboard.confirm_delete"),
@@ -240,14 +203,6 @@ def get_delete_confirmation_keyboard(expense_id: int, lang: str = "en") -> Inlin
 
 
 def get_description_edit_keyboard(expense_id: int, lang: str = "en") -> InlineKeyboardMarkup:
-    """Keyboard for description edit step: clear or cancel (back to details).
-
-    Args:
-        expense_id: ID of the expense being edited.
-
-    Returns:
-        InlineKeyboardMarkup with Clear and Cancel buttons.
-    """
     keyboard = [
         [
             InlineKeyboardButton(text=t(lang, "keyboard.clear_description"),
@@ -259,7 +214,6 @@ def get_description_edit_keyboard(expense_id: int, lang: str = "en") -> InlineKe
 
 
 def get_export_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Inline keyboard for export options."""
     keyboard = [
         [InlineKeyboardButton(text=t(lang, 'export.current_month'), callback_data='export_current_month')],
         [InlineKeyboardButton(text=t(lang, 'export.all'), callback_data='export_all')],
