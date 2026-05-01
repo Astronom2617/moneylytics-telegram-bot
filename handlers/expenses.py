@@ -25,9 +25,11 @@ from utils.translations import (
 
 router = Router()
 
+# Пороги предупреждения бюджета
+BUDGET_THRESHOLDS = [0.6, 0.8, 0.95]
+
 
 class ExpenseEditStates(StatesGroup):
-    """FSM states for editing expenses."""
     edit_amount = State()
     edit_category = State()
     edit_description = State()
@@ -53,7 +55,6 @@ STRICT_CATEGORY_MAP = {
     "housing": "housing",
     "entertainment": "entertainment",
     "other": "other",
-
     # Russian
     "еда": "food",
     "пища": "food",
@@ -62,10 +63,8 @@ STRICT_CATEGORY_MAP = {
     "жильё": "housing",
     "развлечения": "entertainment",
     "другое": "other",
-
     # Ukrainian
     "їжа": "food",
-    "транспорт": "transport",
     "житло": "housing",
     "розваги": "entertainment",
     "інше": "other",
@@ -78,19 +77,6 @@ def get_currency_symbol(currency: str | None) -> str:
 
 
 def extract_explicit_currency(parts: list[str]) -> tuple[list[str], str | None]:
-    """
-    Removes explicit currency from input tokens and returns:
-    (cleaned_parts, explicit_currency_code_or_none)
-
-    Supported examples:
-    - $50 food lunch
-    - €25 invalid_cat pizza
-    - £40 housing rent
-    - 500uah taxi
-    - EUR 50 food
-    - 10 eur lunch
-    - 50 food EUR
-    """
     if not parts:
         return parts, None
 
@@ -124,7 +110,7 @@ def extract_explicit_currency(parts: list[str]) -> tuple[list[str], str | None]:
         cleaned.pop(1)
         return cleaned, explicit_currency
 
-    # Case 5: last token is currency code: 50 food EUR / 50 food pizza EUR
+    # Case 5: last token is currency code: 50 food EUR
     if len(cleaned) > 1 and cleaned[-1].upper() in CURRENCY_CODES:
         explicit_currency = cleaned[-1].upper()
         cleaned.pop()
@@ -134,11 +120,6 @@ def extract_explicit_currency(parts: list[str]) -> tuple[list[str], str | None]:
 
 
 def parse_strict_category(token: str | None) -> str | None:
-    """
-    Strict category parser.
-    Only accepts known canonical/localized category names.
-    Does NOT infer from arbitrary words like coffee/pizza/badcategory.
-    """
     if not token:
         return None
     return STRICT_CATEGORY_MAP.get(token.strip().lower())
@@ -153,8 +134,6 @@ async def save_expense_from_data(
 ) -> Expense:
     with get_session() as session:
         user = session.query(User).filter(User.id == user_id).first()
-
-        # Explicit currency must win over user's profile default
         currency = fallback_currency or (user.currency if user and user.currency else None) or "EUR"
 
         new_expense = Expense(
@@ -170,10 +149,79 @@ async def save_expense_from_data(
         return new_expense
 
 
+async def get_budget_warnings(user_id: int, session, lang: str) -> list[str]:
+    """
+    Checks if the user has reached any budget thresholds (60%, 80%, 95%) or exceeded them.
+    Returns a list of localized warning messages.
+    """
+    user = session.query(User).filter(User.id == user_id).first()
+    if not user or (not user.daily_budget and not user.weekly_budget):
+        return []
+
+    now = datetime.now()
+    today_start = datetime.combine(now, time.min)
+    today_end = datetime.combine(now, time.max)
+    week_start = today_start - timedelta(days=now.weekday())
+    week_end = today_end
+
+    user_currency = user.currency or "EUR"
+    budget_symbol = get_currency_symbol(user_currency)
+    warnings = []
+
+    # Daily budget check
+    if user.daily_budget:
+        daily_total = session.query(func.coalesce(func.sum(Expense.amount), 0.0)).filter(
+            Expense.user_id == user_id,
+            Expense.currency == user_currency,
+            Expense.created_at >= today_start,
+            Expense.created_at <= today_end,
+        ).scalar() or 0.0
+
+        if daily_total > user.daily_budget:
+            warnings.append(t(lang, "budget.daily_exceeded",
+                              total=f"{daily_total:.2f}", currency=budget_symbol,
+                              limit=f"{user.daily_budget:.2f}"))
+        else:
+            percent = daily_total / user.daily_budget
+            thresholds = sorted(BUDGET_THRESHOLDS, reverse=True)
+            for threshold in thresholds:
+                if percent >= threshold:
+                    warnings.append(t(lang, "budget.daily_warn",
+                                      percent=int(threshold * 100),
+                                      total=f"{daily_total:.2f}", currency=budget_symbol,
+                                      limit=f"{user.daily_budget:.2f}"))
+                    break
+
+    # Weekly budget check
+    if user.weekly_budget:
+        weekly_total = session.query(func.coalesce(func.sum(Expense.amount), 0.0)).filter(
+            Expense.user_id == user_id,
+            Expense.currency == user_currency,
+            Expense.created_at >= week_start,
+            Expense.created_at <= week_end,
+        ).scalar() or 0.0
+
+        if weekly_total > user.weekly_budget:
+            warnings.append(t(lang, "budget.weekly_exceeded",
+                              total=f"{weekly_total:.2f}", currency=budget_symbol,
+                              limit=f"{user.weekly_budget:.2f}"))
+        else:
+            percent = weekly_total / user.weekly_budget
+            thresholds = sorted(BUDGET_THRESHOLDS, reverse=True)
+            for threshold in thresholds:
+                if percent >= threshold:
+                    warnings.append(t(lang, "budget.weekly_warn",
+                                      percent=int(threshold * 100),
+                                      total=f"{weekly_total:.2f}", currency=budget_symbol,
+                                      limit=f"{user.weekly_budget:.2f}"))
+                    break
+
+    return warnings
+
+
 @router.message(Command("myexpenses"))
 @router.message(F.text.in_(text_options("menu.my_expenses")))
 async def list_expenses(message: Message):
-    """Show user's recent expenses with selection options."""
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
         if user is None:
@@ -210,7 +258,6 @@ async def list_expenses(message: Message):
 @router.message(Command("export"))
 @router.message(F.text.in_(text_options("menu.export")))
 async def export_menu(message: Message):
-    """Show export options for the user as inline buttons."""
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
         lang = get_user_language(user, detect_language(message.from_user.language_code))
@@ -220,7 +267,6 @@ async def export_menu(message: Message):
 
 @router.message()
 async def add_expenses(message: Message, state: FSMContext):
-    """Parse an incoming message and save a new expense for the user."""
     lang = detect_language(message.from_user.language_code)
     raw_text = message.text or ""
     parts = raw_text.split()
@@ -229,7 +275,7 @@ async def add_expenses(message: Message, state: FSMContext):
         await message.answer(t(lang, "expenses.missing_fields"))
         return
 
-    # 1) Remove explicit currency BEFORE numeric parsing
+    # 1) Убираем явную валюту ДО парсинга числа
     parts, explicit_currency = extract_explicit_currency(parts)
 
     if len(parts) < 1:
@@ -252,26 +298,25 @@ async def add_expenses(message: Message, state: FSMContext):
         await message.answer(t(lang, "expenses.amount_too_large"))
         return
 
-    # 2) Category is ONLY the second token, strictly parsed
+    # 2) Категория — строго второй токен
     category_token = parts[1] if len(parts) > 1 else None
     category = parse_strict_category(category_token)
 
-    # 3) Description starts strictly after category slot
+    # 3) Описание — всё после категории
     description = " ".join(parts[2:]) if len(parts) > 2 else None
 
-    # If category is missing/invalid -> clarification, no auto-save
+    # Если категория не распознана — спрашиваем
     if not category:
         await state.set_state(AddExpenseStates.waiting_for_category)
 
         with get_session() as session:
             user = session.query(User).filter(User.id == message.from_user.id).first()
             lang = get_user_language(user, detect_language(message.from_user.language_code))
-            fallback_currency = explicit_currency or (user.currency if user and user.currency else "EUR")
 
         await state.update_data(
             pending_amount=amount,
             pending_description=description,
-            pending_explicit_currency=explicit_currency,  # None if user typed no currency prefix
+            pending_explicit_currency=explicit_currency,
         )
 
         await message.answer(
@@ -312,56 +357,14 @@ async def add_expenses(message: Message, state: FSMContext):
             )
         )
 
-        if user and (user.daily_budget or user.weekly_budget):
-            now = datetime.now()
-            today_start = datetime.combine(now, time.min)
-            today_end = datetime.combine(now, time.max)
-            week_start = today_start - timedelta(days=now.weekday())
-            week_end = today_end
-
-            daily_total = session.query(func.coalesce(func.sum(Expense.amount), 0.0)).filter(
-                Expense.user_id == message.from_user.id,
-                Expense.currency == saved_expense.currency,
-                Expense.created_at >= today_start,
-                Expense.created_at <= today_end,
-            ).scalar() or 0.0
-
-            weekly_total = session.query(func.coalesce(func.sum(Expense.amount), 0.0)).filter(
-                Expense.user_id == message.from_user.id,
-                Expense.currency == saved_expense.currency,
-                Expense.created_at >= week_start,
-                Expense.created_at <= week_end,
-            ).scalar() or 0.0
-
-            warnings = []
-            if user.daily_budget and daily_total > user.daily_budget:
-                warnings.append(
-                    t(
-                        lang,
-                        "budget.daily_exceeded",
-                        total=f"{daily_total:.2f}",
-                        currency=currency_symbol,
-                        limit=f"{user.daily_budget:.2f}",
-                    )
-                )
-            if user.weekly_budget and weekly_total > user.weekly_budget:
-                warnings.append(
-                    t(
-                        lang,
-                        "budget.weekly_exceeded",
-                        total=f"{weekly_total:.2f}",
-                        currency=currency_symbol,
-                        limit=f"{user.weekly_budget:.2f}",
-                    )
-                )
-
-            if warnings:
-                await message.answer("\n".join(warnings))
+        # Проверка бюджета
+        warnings = await get_budget_warnings(message.from_user.id, session, lang)
+        if warnings:
+            await message.answer("\n".join(warnings))
 
 
 @router.callback_query(F.data.startswith("pending_expense_category:"))
 async def pending_expense_category_selected(callback: CallbackQuery, state: FSMContext):
-    """Handle category selection for a pending (not yet saved) expense."""
     new_category = callback.data.split(":", 1)[1]
     if new_category not in EXPENSE_CATEGORIES:
         await callback.answer()
@@ -370,7 +373,7 @@ async def pending_expense_category_selected(callback: CallbackQuery, state: FSMC
     data = await state.get_data()
     amount = data.get("pending_amount")
     description = data.get("pending_description")
-    explicit_currency = data.get("pending_explicit_currency")  # None or e.g. "USD"
+    explicit_currency = data.get("pending_explicit_currency")
 
     if amount is None:
         with get_session() as session:
@@ -381,13 +384,9 @@ async def pending_expense_category_selected(callback: CallbackQuery, state: FSMC
         await callback.answer()
         return
 
-    # --- Determine whether currency is already known ---
     if explicit_currency:
-        # Explicit currency always wins: save immediately, no further prompts
         should_ask_currency = False
-        known_currencies = []
     else:
-        # No explicit currency: inspect history to see if disambiguation is needed
         with get_session() as session:
             rows = (
                 session.query(Expense.currency)
@@ -399,7 +398,6 @@ async def pending_expense_category_selected(callback: CallbackQuery, state: FSMC
         should_ask_currency = len(known_currencies) >= 2
 
     if should_ask_currency:
-        # 2+ currencies in history and no explicit one — ask before saving
         await state.update_data(pending_category=new_category)
         await state.set_state(AddExpenseStates.waiting_for_currency)
 
@@ -415,13 +413,12 @@ async def pending_expense_category_selected(callback: CallbackQuery, state: FSMC
         await callback.answer()
         return
 
-    # Save immediately — either explicit currency was provided, or user has ≤1 in history
     saved_expense = await save_expense_from_data(
         user_id=callback.from_user.id,
         amount=float(amount),
         category=new_category,
         description=description,
-        fallback_currency=explicit_currency,  # None → save_expense_from_data uses user default / EUR
+        fallback_currency=explicit_currency,
     )
 
     with get_session() as session:
@@ -447,13 +444,19 @@ async def pending_expense_category_selected(callback: CallbackQuery, state: FSMC
             )
         )
     )
+
+    # Проверка бюджета
+    with get_session() as session:
+        warnings = await get_budget_warnings(callback.from_user.id, session, lang)
+        if warnings:
+            await callback.message.answer("\n".join(warnings))
+
     await state.clear()
     await callback.answer()
 
 
 @router.callback_query(AddExpenseStates.waiting_for_currency, F.data.startswith("pending_expense_currency:"))
 async def pending_expense_currency_selected(callback: CallbackQuery, state: FSMContext):
-    """Handle currency selection after category clarification when user has 2+ currencies in history."""
     chosen_currency = callback.data.split(":", 1)[1]
     if chosen_currency not in CURRENCY_CODES:
         await callback.answer()
@@ -504,13 +507,19 @@ async def pending_expense_currency_selected(callback: CallbackQuery, state: FSMC
             )
         )
     )
+
+    # Проверка бюджета
+    with get_session() as session:
+        warnings = await get_budget_warnings(callback.from_user.id, session, lang)
+        if warnings:
+            await callback.message.answer("\n".join(warnings))
+
     await state.clear()
     await callback.answer()
 
 
 @router.callback_query(F.data == "pending_expense_cancel")
 async def pending_expense_cancel(callback: CallbackQuery, state: FSMContext):
-    """Cancel pending new expense category clarification."""
     with get_session() as session:
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         lang = get_user_language(user, detect_language(callback.from_user.language_code))
