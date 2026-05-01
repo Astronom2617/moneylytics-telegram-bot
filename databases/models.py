@@ -1,6 +1,6 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import BigInteger, String, Float, DateTime, Integer, ForeignKey
-from datetime import datetime
+from sqlalchemy import BigInteger, String, Float, DateTime, Integer, ForeignKey, Date
+from datetime import datetime, date
 
 class Base(DeclarativeBase):
     pass
@@ -17,6 +17,8 @@ class User(Base):
     language: Mapped[str] = mapped_column(String(10), default="en", nullable=False)
     daily_over_limit_count: Mapped[int] = mapped_column(Integer, default=0)
     weekly_over_limit_count: Mapped[int] = mapped_column(Integer, default=0)
+    daily_over_limit_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    weekly_over_limit_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 class Expense(Base):
     __tablename__ = 'expenses'

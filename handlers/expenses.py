@@ -148,6 +148,7 @@ async def save_expense_from_data(
         session.refresh(new_expense)
         return new_expense
 
+MAX_OVER_LIMIT_WARNINGS = 3
 
 async def get_budget_warnings(user_id: int, session, lang: str) -> list[str]:
     """
@@ -159,16 +160,19 @@ async def get_budget_warnings(user_id: int, session, lang: str) -> list[str]:
         return []
 
     now = datetime.now()
+    today = now.date()
+    week_start_date = (now - timedelta(days=now.weekday())).date()
+
     today_start = datetime.combine(now, time.min)
     today_end = datetime.combine(now, time.max)
-    week_start = today_start - timedelta(days=now.weekday())
+    week_start = datetime.combine(today_start - timedelta(days=now.weekday()), time.min)
     week_end = today_end
 
     user_currency = user.currency or "EUR"
     budget_symbol = get_currency_symbol(user_currency)
     warnings = []
 
-    # Daily budget check
+    # --- Daily budget ---
     if user.daily_budget:
         daily_total = session.query(func.coalesce(func.sum(Expense.amount), 0.0)).filter(
             Expense.user_id == user_id,
@@ -178,13 +182,18 @@ async def get_budget_warnings(user_id: int, session, lang: str) -> list[str]:
         ).scalar() or 0.0
 
         if daily_total > user.daily_budget:
-            warnings.append(t(lang, "budget.daily_exceeded",
-                              total=f"{daily_total:.2f}", currency=budget_symbol,
-                              limit=f"{user.daily_budget:.2f}"))
+            if user.daily_over_limit_date != today:
+                user.daily_over_limit_count = 0
+                user.daily_over_limit_date = today
+
+            if user.daily_over_limit_count < MAX_OVER_LIMIT_WARNINGS:
+                user.daily_over_limit_count += 1
+                warnings.append(t(lang, "budget.daily_exceeded",
+                                  total=f"{daily_total:.2f}", currency=budget_symbol,
+                                  limit=f"{user.daily_budget:.2f}"))
         else:
             percent = daily_total / user.daily_budget
-            thresholds = sorted(BUDGET_THRESHOLDS, reverse=True)
-            for threshold in thresholds:
+            for threshold in sorted(BUDGET_THRESHOLDS, reverse=True):
                 if percent >= threshold:
                     warnings.append(t(lang, "budget.daily_warn",
                                       percent=int(threshold * 100),
@@ -192,7 +201,7 @@ async def get_budget_warnings(user_id: int, session, lang: str) -> list[str]:
                                       limit=f"{user.daily_budget:.2f}"))
                     break
 
-    # Weekly budget check
+    # --- Weekly budget ---
     if user.weekly_budget:
         weekly_total = session.query(func.coalesce(func.sum(Expense.amount), 0.0)).filter(
             Expense.user_id == user_id,
@@ -202,19 +211,26 @@ async def get_budget_warnings(user_id: int, session, lang: str) -> list[str]:
         ).scalar() or 0.0
 
         if weekly_total > user.weekly_budget:
-            warnings.append(t(lang, "budget.weekly_exceeded",
-                              total=f"{weekly_total:.2f}", currency=budget_symbol,
-                              limit=f"{user.weekly_budget:.2f}"))
+            if user.weekly_over_limit_date is None or user.weekly_over_limit_date < week_start_date:
+                user.weekly_over_limit_count = 0
+                user.weekly_over_limit_date = today
+
+            if user.weekly_over_limit_count < MAX_OVER_LIMIT_WARNINGS:
+                user.weekly_over_limit_count += 1
+                warnings.append(t(lang, "budget.weekly_exceeded",
+                                  total=f"{weekly_total:.2f}", currency=budget_symbol,
+                                  limit=f"{user.weekly_budget:.2f}"))
         else:
             percent = weekly_total / user.weekly_budget
-            thresholds = sorted(BUDGET_THRESHOLDS, reverse=True)
-            for threshold in thresholds:
+            for threshold in sorted(BUDGET_THRESHOLDS, reverse=True):
                 if percent >= threshold:
                     warnings.append(t(lang, "budget.weekly_warn",
                                       percent=int(threshold * 100),
                                       total=f"{weekly_total:.2f}", currency=budget_symbol,
                                       limit=f"{user.weekly_budget:.2f}"))
                     break
+
+    session.commit()
 
     return warnings
 

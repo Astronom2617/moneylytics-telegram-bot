@@ -78,6 +78,10 @@ def init_db():
         with engine.begin() as conn:
             if "language" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'en'"))
+            if "daily_over_limit_date" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN daily_over_limit_date DATE"))
+            if "weekly_over_limit_date" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN weekly_over_limit_date DATE"))
             conn.execute(text("UPDATE users SET language = 'en' WHERE language IS NULL OR language = ''"))
 
     if "expenses" in inspector.get_table_names():
