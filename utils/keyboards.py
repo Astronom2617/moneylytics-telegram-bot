@@ -97,7 +97,6 @@ def get_currency_keyboard() -> InlineKeyboardMarkup:
     return currency_menu
 
 
-# Expense Categories (fixed list for editing)
 EXPENSE_CATEGORIES = list(CANONICAL_CATEGORIES)
 
 
