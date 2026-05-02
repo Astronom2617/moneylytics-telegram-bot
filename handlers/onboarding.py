@@ -13,7 +13,6 @@ from utils.currency import CURRENCY_SYMBOLS
 router = Router()
 
 
-# FSM States for onboarding flow
 class OnboardingStates(StatesGroup):
     """
     State 1: choosing_language - User selects their preferred language
@@ -32,7 +31,6 @@ async def start_onboarding(message: Message, state: FSMContext):
     """
     await state.set_state(OnboardingStates.choosing_language)
 
-    # Send multilingual prompt (no language preference yet)
     await message.answer(
         "🌐 Choose your language 🇺🇸 / Выберите язык 🇷🇺 / Оберіть мову 🇺🇦",
         reply_markup=get_language_keyboard(current_lang=None)
@@ -47,12 +45,10 @@ async def onboarding_language_selected(callback: CallbackQuery, state: FSMContex
     - Move to greeting state
     - ALL subsequent messages use ONLY this selected language
     """
-    selected_lang = callback.data.split("_")[1]  # Extract "en", "ru", or "uk"
+    selected_lang = callback.data.split("_")[1]
 
-    # Save language to FSM context for immediate use
     await state.update_data(language=selected_lang)
 
-    # Create or update user in database with selected language
     with get_session() as session:
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         if user is None:
@@ -68,11 +64,9 @@ async def onboarding_language_selected(callback: CallbackQuery, state: FSMContex
             user.language = selected_lang
         session.commit()
 
-    # Acknowledge selection and move to greeting
     await callback.answer()
     await callback.message.delete()
 
-    # Move to greeting state
     await state.set_state(OnboardingStates.showing_greeting)
     await send_greeting_messages(callback.message, selected_lang, callback.from_user.first_name, state)
 
@@ -84,11 +78,9 @@ async def send_greeting_messages(message: Message, lang: str, user_name: str, st
     - Typing action before each message
     - Small delays between messages for better UX
     """
-    # Send "typing..." action
     await message.bot.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
     await asyncio.sleep(0.5)
 
-    # Message 1: Hello
     await message.answer(
         t(lang, 'start.hello', name=user_name)
     )
@@ -97,7 +89,6 @@ async def send_greeting_messages(message: Message, lang: str, user_name: str, st
     await message.bot.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
     await asyncio.sleep(0.5)
 
-    # Message 2: Welcome
     await message.answer(
         t(lang, 'start.welcome')
     )
@@ -106,14 +97,12 @@ async def send_greeting_messages(message: Message, lang: str, user_name: str, st
     await message.bot.send_chat_action(chat_id=message.chat.id, action=ChatAction.TYPING)
     await asyncio.sleep(0.5)
 
-    # Message 3: Setup
     await message.answer(
         t(lang, 'start.setup')
     )
 
     await asyncio.sleep(0.8)
 
-    # Move to currency selection
     await state.set_state(OnboardingStates.choosing_currency)
     await message.answer(
         t(lang, "currency.choose"),
@@ -132,27 +121,22 @@ async def onboarding_currency_selected(callback: CallbackQuery, state: FSMContex
     """
     currency = callback.data.split("_")[1]
 
-    # Get selected language from FSM context (guaranteed to exist)
     data = await state.get_data()
-    lang = data.get("language", "en")  # Fallback to "en" if somehow missing
+    lang = data.get("language", "en")
 
-    # Update user with currency
     with get_session() as session:
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         if user:
             user.currency = currency
             session.commit()
 
-    # Complete onboarding
     await state.clear()
 
-    # Show confirmation message in selected language
     await callback.message.answer(
         t(lang, "currency.updated", currency=CURRENCY_SYMBOLS.get(currency, currency)),
         reply_markup=get_main_menu(lang)
     )
 
-    # Show how to add expenses hint in selected language
     await callback.message.answer(t(lang, "start.add_expenses_hint"))
 
     await callback.answer()

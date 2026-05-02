@@ -15,7 +15,6 @@ def _normalize_legacy_categories(conn):
     """
     # Legacy -> Canonical category mappings
     legacy_mappings = {
-        # Russian names
         'еда': 'food',
         'пища': 'food',
         'пицца': 'food',
@@ -46,23 +45,19 @@ def _normalize_legacy_categories(conn):
         
         'другое': 'other',
     }
-    
-    # Build CASE statement for all legacy mappings
+
     case_conditions = []
     for legacy, canonical in legacy_mappings.items():
         case_conditions.append(f"WHEN LOWER(category) = '{legacy.lower()}' THEN '{canonical}'")
     
     case_statement = '\n    '.join(case_conditions)
-    
-    # Update query: normalize known legacy values and normalize canonical to lowercase
+
     normalize_query = f"""
     UPDATE expenses
     SET category = CASE
         {case_statement}
-        -- If category is already canonical, normalize to lowercase
         WHEN LOWER(category) IN ('food', 'transport', 'housing', 'entertainment', 'other')
             THEN LOWER(category)
-        -- For anything else that is not canonical, default to 'other'
         ELSE 'other'
     END
     WHERE category IS NOT NULL
@@ -99,7 +94,6 @@ def init_db():
                 WHERE currency IS NULL OR currency = ''
                 """
             ))
-            # Normalize legacy non-canonical category values to canonical ones
             _normalize_legacy_categories(conn)
 
 def get_session() -> Session:

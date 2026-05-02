@@ -25,9 +25,7 @@ from utils.translations import (
 
 router = Router()
 
-# Пороги предупреждения бюджета
 BUDGET_THRESHOLDS = [0.6, 0.8, 0.95]
-
 
 class ExpenseEditStates(StatesGroup):
     edit_amount = State()
@@ -83,14 +81,12 @@ def extract_explicit_currency(parts: list[str]) -> tuple[list[str], str | None]:
     cleaned = parts[:]
     explicit_currency = None
 
-    # Case 1: prefix symbol in first token: $50 / €25 / ₴100 / £40
     first = cleaned[0]
     if first and first[0] in CURRENCY_SYMBOL_TO_CODE:
         explicit_currency = CURRENCY_SYMBOL_TO_CODE[first[0]]
         cleaned[0] = first[1:]
         return cleaned, explicit_currency
 
-    # Case 2: suffix code in first token: 500uah / 10eur / 20usd / 40gbp
     first_lower = cleaned[0].lower()
     for code in ("eur", "usd", "uah", "gbp"):
         if first_lower.endswith(code) and len(cleaned[0]) > len(code):
@@ -98,19 +94,16 @@ def extract_explicit_currency(parts: list[str]) -> tuple[list[str], str | None]:
             cleaned[0] = cleaned[0][:-len(code)]
             return cleaned, explicit_currency
 
-    # Case 3: first token is currency code: EUR 50 food
     if cleaned[0].upper() in CURRENCY_CODES:
         explicit_currency = cleaned[0].upper()
         cleaned = cleaned[1:]
         return cleaned, explicit_currency
 
-    # Case 4: second token is currency code: 10 EUR lunch
     if len(cleaned) > 1 and cleaned[1].upper() in CURRENCY_CODES:
         explicit_currency = cleaned[1].upper()
         cleaned.pop(1)
         return cleaned, explicit_currency
 
-    # Case 5: last token is currency code: 50 food EUR
     if len(cleaned) > 1 and cleaned[-1].upper() in CURRENCY_CODES:
         explicit_currency = cleaned[-1].upper()
         cleaned.pop()
@@ -291,7 +284,6 @@ async def add_expenses(message: Message, state: FSMContext):
         await message.answer(t(lang, "expenses.missing_fields"))
         return
 
-    # 1) Убираем явную валюту ДО парсинга числа
     parts, explicit_currency = extract_explicit_currency(parts)
 
     if len(parts) < 1:
@@ -314,14 +306,11 @@ async def add_expenses(message: Message, state: FSMContext):
         await message.answer(t(lang, "expenses.amount_too_large"))
         return
 
-    # 2) Категория — строго второй токен
     category_token = parts[1] if len(parts) > 1 else None
     category = parse_strict_category(category_token)
 
-    # 3) Описание — всё после категории
     description = " ".join(parts[2:]) if len(parts) > 2 else None
 
-    # Если категория не распознана — спрашиваем
     if not category:
         await state.set_state(AddExpenseStates.waiting_for_category)
 
@@ -373,7 +362,6 @@ async def add_expenses(message: Message, state: FSMContext):
             )
         )
 
-        # Проверка бюджета
         warnings = await get_budget_warnings(message.from_user.id, session, lang)
         if warnings:
             await message.answer("\n".join(warnings))
@@ -461,7 +449,6 @@ async def pending_expense_category_selected(callback: CallbackQuery, state: FSMC
         )
     )
 
-    # Проверка бюджета
     with get_session() as session:
         warnings = await get_budget_warnings(callback.from_user.id, session, lang)
         if warnings:
@@ -524,7 +511,6 @@ async def pending_expense_currency_selected(callback: CallbackQuery, state: FSMC
         )
     )
 
-    # Проверка бюджета
     with get_session() as session:
         warnings = await get_budget_warnings(callback.from_user.id, session, lang)
         if warnings:
