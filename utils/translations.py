@@ -166,6 +166,11 @@ TRANSLATIONS = {
         "reports.chart_title": "Expenses by Category ({start} - {end})",
         "reports.chart_title_currency": "Expenses by Category ({start} - {end}) - {currency}",
         "reports.chart_caption": "Here is your pie chart by categories for this month ({start} - {end}).",
+        "months": {
+            1: "January", 2: "February", 3: "March", 4: "April",
+            5: "May", 6: "June", 7: "July", 8: "August",
+            9: "September", 10: "October", 11: "November", 12: "December"
+        }
     },
     "ru": {
         "menu.today": "📊 Сегодня",
@@ -322,6 +327,11 @@ TRANSLATIONS = {
         "reports.chart_title": "Расходы по категориям ({start} - {end})",
         "reports.chart_title_currency": "Расходы по категориям ({start} - {end}) - {currency}",
         "reports.chart_caption": "Вот ваш круговой график по категориям за этот месяц ({start} - {end}).",
+        "months": {
+            1: "января", 2: "февраля", 3: "марта", 4: "апреля",
+            5: "мая", 6: "июня", 7: "июля", 8: "августа",
+            9: "сентября", 10: "октября", 11: "ноября", 12: "декабря"
+        }
     },
     "uk": {
         "menu.today": "📊 Сьогодні",
@@ -478,6 +488,11 @@ TRANSLATIONS = {
         "reports.chart_title": "Витрати за категоріями ({start} - {end})",
         "reports.chart_title_currency": "Витрати за категоріями ({start} - {end}) - {currency}",
         "reports.chart_caption": "Ось ваша кругова діаграма за категоріями за цей місяць ({start} - {end}).",
+        "months": {
+            1: "січня", 2: "лютого", 3: "березня", 4: "квітня",
+            5: "травня", 6: "червня", 7: "липня", 8: "серпня",
+            9: "вересня", 10: "жовтня", 11: "листопада", 12: "грудня"
+        }
     },
 }
 
