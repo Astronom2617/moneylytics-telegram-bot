@@ -12,7 +12,7 @@ from io import BytesIO
 from aiogram.types import BufferedInputFile
 
 from utils.currency import CURRENCY_SYMBOLS
-from utils.translations import detect_language, get_user_language, text_options, t, t_category
+from utils.translations import detect_language, get_user_language, text_options, t, t_category, TRANSLATIONS, DEFAULT_LANGUAGE
 
 router = Router()
 
@@ -129,7 +129,9 @@ async def daily_report(message: Message):
         await message.answer(t(lang, "reports.no_today"))
         return
 
-    day_today =datetime.now().strftime("%d %b")
+    now = datetime.now()
+    months = TRANSLATIONS.get(lang, TRANSLATIONS[DEFAULT_LANGUAGE]).get("months", {})
+    day_today = f"{now.day:02d} {months.get(now.month, now.strftime('%b'))}"
     report = build_expense_report(
         expenses,
         title=t(lang, "reports.title_today", date=day_today),
