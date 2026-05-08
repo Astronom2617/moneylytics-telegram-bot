@@ -20,6 +20,7 @@ async def command_start_handler(message: Message, state: FSMContext) -> None:
     - If user exists: show welcome back message
     - If new user: start FSM-based onboarding (language selection only)
     """
+    await state.clear()
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
         if user:
