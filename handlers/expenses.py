@@ -276,7 +276,10 @@ async def export_menu(message: Message):
 
 @router.message()
 async def add_expenses(message: Message, state: FSMContext):
-    lang = detect_language(message.from_user.language_code)
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
+
     raw_text = message.text or ""
     parts = raw_text.split()
 
@@ -314,10 +317,6 @@ async def add_expenses(message: Message, state: FSMContext):
     if not category:
         await state.set_state(AddExpenseStates.waiting_for_category)
 
-        with get_session() as session:
-            user = session.query(User).filter(User.id == message.from_user.id).first()
-            lang = get_user_language(user, detect_language(message.from_user.language_code))
-
         await state.update_data(
             pending_amount=amount,
             pending_description=description,
@@ -339,8 +338,6 @@ async def add_expenses(message: Message, state: FSMContext):
     )
 
     with get_session() as session:
-        user = session.query(User).filter(User.id == message.from_user.id).first()
-        lang = get_user_language(user, detect_language(message.from_user.language_code))
         currency_symbol = get_currency_symbol(saved_expense.currency)
 
         if description:
