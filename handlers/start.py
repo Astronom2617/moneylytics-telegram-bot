@@ -4,7 +4,7 @@ from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 
 from databases import get_session, User
-from utils.keyboards import get_main_menu, get_settings_keyboard
+from utils.keyboards import get_main_menu, get_settings_keyboard, get_currency_keyboard
 from handlers.onboarding import start_onboarding
 from utils.currency import CURRENCY_MAP
 from utils.translations import detect_language, get_user_language, text_options, t
@@ -42,7 +42,10 @@ async def command_set_currency_handler(message: Message):
         lang = get_user_language(user, detect_language(message.from_user.language_code))
 
     if len(parts) < 2:
-        await message.answer(t(lang, "currency.choose"))
+        await message.answer(
+            t(lang, "currency.choose"),
+            reply_markup=get_currency_keyboard()
+        )
         return
 
     user_input = parts[1].upper()
