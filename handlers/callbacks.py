@@ -78,8 +78,10 @@ async def process_currency_selection(callback: CallbackQuery):
 
 # Setting Budget
 async def set_budget(message: Message, state: FSMContext, field: str, label: str):
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
     raw_text = message.text
-    lang = detect_language(message.from_user.language_code)
     try:
         amount = float(raw_text.replace(",", "."))
     except ValueError:
