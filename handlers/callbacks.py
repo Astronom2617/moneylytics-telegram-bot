@@ -102,6 +102,17 @@ async def set_budget(message: Message, state: FSMContext, field: str, label: str
                 language=language,
             )
             session.add(user)
+
+        if field == "daily_budget":
+            if user.weekly_budget and amount > user.weekly_budget:
+                await message.answer(t(lang, "budget.daily_exceeds_weekly", weekly=f"{user.weekly_budget:.2f}"))
+                return
+
+        if field == "weekly_budget":
+            if user.daily_budget and amount < user.daily_budget:
+                await message.answer(t(lang, "budget.weekly_less_than_daily", daily=f"{user.daily_budget:.2f}"))
+                return
+
         setattr(user, field, amount)
         session.commit()
         currency = user.currency or "EUR"
