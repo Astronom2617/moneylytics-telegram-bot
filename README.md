@@ -1,5 +1,7 @@
 # 💰 Moneylytics Bot
 
+> **Try it live: [@moneylytics_bot](https://t.me/moneylytics_bot)**
+
 A Telegram bot for personal expense tracking with automatic financial analytics and reporting.
 
 ## Why I built this
