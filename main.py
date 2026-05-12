@@ -36,8 +36,8 @@ async def main() -> None:
     dp.include_router(budget_router)
     dp.include_router(reports_router)
     dp.include_router(feedback_router)
-    dp.include_router(expenses_router)
     dp.include_router(admin_router)
+    dp.include_router(expenses_router)
     await dp.start_polling(bot)
 
 
