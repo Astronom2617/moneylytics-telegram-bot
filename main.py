@@ -13,7 +13,8 @@ from handlers.reports import router as reports_router
 from handlers.expenses import router as expenses_router
 from handlers.budget import router as budget_router
 from handlers.callbacks import router as callbacks_router
-
+from handlers.feedback import router as feedback_router
+from handlers.admin import router as admin_router
 
 from databases import init_db
 
@@ -35,6 +36,8 @@ async def main() -> None:
     dp.include_router(budget_router)
     dp.include_router(reports_router)
     dp.include_router(expenses_router)
+    dp.include_router(feedback_router)
+    dp.include_router(admin_router)
     await dp.start_polling(bot)
 
 
