@@ -12,6 +12,7 @@ def get_main_menu(lang: str = "en") -> ReplyKeyboardMarkup:
             [KeyboardButton(text=t(lang, 'menu.categories')), KeyboardButton(text=t(lang, 'menu.budget'))],
             [KeyboardButton(text=t(lang, 'menu.settings')), KeyboardButton(text=t(lang, 'menu.help'))],
             [KeyboardButton(text=t(lang, 'menu.my_expenses')), KeyboardButton(text=t(lang, 'menu.export'))],
+            [KeyboardButton(text=t(lang, 'feedback.button'))],
         ],
         resize_keyboard=True,
         input_field_placeholder=t(lang, 'menu.placeholder')
