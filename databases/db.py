@@ -101,5 +101,8 @@ def init_db():
             ))
             _normalize_legacy_categories(conn)
 
+    if "feedback_reports" not in inspector.get_table_names():
+        Base.metadata.tables['feedback_reports'].create(bind=engine)
+
 def get_session() -> Session:
     return SessionLocal()
