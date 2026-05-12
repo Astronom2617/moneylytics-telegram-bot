@@ -29,3 +29,11 @@ class Expense(Base):
     currency: Mapped[str] = mapped_column(String(20), default="EUR", nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+class FeedbackReport(Base):
+    __tablename__ = 'feedback_reports'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('users.id'))
+    text: Mapped[str] = mapped_column(String(2000))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    is_read: Mapped[bool] = mapped_column(default=False)
