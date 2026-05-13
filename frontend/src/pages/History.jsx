@@ -3,6 +3,9 @@ import { Trash2, Plus } from 'lucide-react'
 import { getExpenses, deleteExpense } from '../api.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
 
+// Форматируем категорию: food → Food
+const formatCategory = (cat) => cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
+
 const PERIODS = [
   { id: 'today', label: 'Today' },
   { id: 'week',  label: 'Week' },
@@ -126,18 +129,18 @@ export default function History({ user }) {
                     gap: 12,
                   }}>
                     {/* Иконка категории */}
-                    <div style={{
-                      width: 40, height: 40, borderRadius: 10,
-                      background: 'var(--accent-light)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 18, flexShrink: 0,
-                    }}>
-                      {getCategoryEmoji(e.category)}
-                    </div>
+                     <div style={{
+                       width: 40, height: 40, borderRadius: 10,
+                       background: 'var(--accent-light)',
+                       display: 'flex', alignItems: 'center', justifyContent: 'center',
+                       fontSize: 18, flexShrink: 0,
+                     }}>
+                       {getCategoryEmoji(formatCategory(e.category))}
+                     </div>
 
                     {/* Инфо */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 15, fontWeight: 500 }}>{e.category}</p>
+                      <p style={{ fontSize: 15, fontWeight: 500 }}>{formatCategory(e.category)}</p>
                       {e.description && (
                         <p style={{
                           fontSize: 13,

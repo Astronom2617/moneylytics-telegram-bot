@@ -1,6 +1,6 @@
 from aiogram import Router, html, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from aiogram.fsm.context import FSMContext
 
 from databases import get_session, User
@@ -75,6 +75,22 @@ async def command_help_handler(message: Message):
         lang = get_user_language(user, detect_language(message.from_user.language_code))
 
     await message.answer(t(lang, "help.text"))
+
+
+# Mini App
+@router.message(Command("app"))
+async def command_app_handler(message: Message):
+    with get_session() as session:
+        user = session.query(User).filter(User.id == message.from_user.id).first()
+        lang = get_user_language(user, detect_language(message.from_user.language_code))
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(
+            text="📊 Open Moneylytics",
+            web_app=WebAppInfo(url="https://moneylytics-bot-9bebd4a93154.herokuapp.com")
+        )
+    ]])
+    await message.answer(t(lang, "app.open", default="Tap the button to open Moneylytics:"), reply_markup=kb)
 
 
 # Settings
