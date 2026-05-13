@@ -3,6 +3,9 @@ import { Plus } from 'lucide-react'
 import { getStats } from '../api.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
 
+// Форматируем категорию: food → Food
+const formatCategory = (cat) => cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
+
 const CATEGORY_COLORS = {
   Food: '#F59E0B',
   Transport: '#3B82F6',
@@ -129,26 +132,27 @@ export default function Dashboard({ user }) {
               }}>
                 Top categories this week
               </p>
-              <div className="card" style={{ padding: '8px 0' }}>
-                {stats.by_category.slice(0, 5).map((item, i) => {
-                  const color = CATEGORY_COLORS[item.category] ?? '#94A3B8'
-                  const maxTotal = stats.by_category[0].total
-                  const pct = (item.total / maxTotal) * 100
-                  return (
-                    <div key={i} style={{ padding: '10px 16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: 14 }}>{item.category}</span>
-                        <span className="amount" style={{ fontSize: 14, color }}>
-                          {cur} {item.total.toFixed(2)}
-                        </span>
-                      </div>
-                      <div style={{ height: 3, borderRadius: 2, background: 'var(--tg-theme-bg-color)' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 2, background: color }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+               <div className="card" style={{ padding: '8px 0' }}>
+                 {stats.by_category.slice(0, 5).map((item, i) => {
+                   const displayCategory = formatCategory(item.category)
+                   const color = CATEGORY_COLORS[displayCategory] ?? '#94A3B8'
+                   const maxTotal = stats.by_category[0].total
+                   const pct = (item.total / maxTotal) * 100
+                   return (
+                     <div key={i} style={{ padding: '10px 16px' }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                         <span style={{ fontSize: 14 }}>{displayCategory}</span>
+                         <span className="amount" style={{ fontSize: 14, color }}>
+                           {cur} {item.total.toFixed(2)}
+                         </span>
+                       </div>
+                       <div style={{ height: 3, borderRadius: 2, background: 'var(--tg-theme-bg-color)' }}>
+                         <div style={{ width: `${pct}%`, height: '100%', borderRadius: 2, background: color }} />
+                       </div>
+                     </div>
+                   )
+                 })}
+               </div>
             </>
           )}
         </>
