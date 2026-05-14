@@ -64,16 +64,16 @@ html, body, #root {
 
 /* ── Общие компоненты ──────────────────────────────────────────────────────── */
 .page {
-  padding: 16px;
+  padding: 20px 16px;
 }
 
 .page-header {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .page-title {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 700;
   color: var(--tg-theme-text-color);
 }
 
@@ -89,6 +89,7 @@ html, body, #root {
   border-radius: var(--radius-md);
   padding: 16px;
   margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
 /* Кнопка основная */
@@ -285,4 +286,56 @@ html, body, #root {
   color: var(--tg-theme-text-color);
   font-weight: 500;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* ── Modal (detail sheet) ─────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: flex-end;
+  z-index: 300;
+}
+.modal-sheet {
+  width: 100%;
+  background: var(--tg-theme-bg-color);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 16px 32px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Danger button */
+.btn-danger {
+  background: var(--danger-light);
+  color: var(--danger);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 12px 20px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.15s;
+}
+.btn-danger:active { opacity: 0.8; }
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Detail rows */
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.detail-label {
+  font-size: 13px;
+  color: var(--tg-theme-hint-color);
+  flex-shrink: 0;
+}
+.detail-value {
+  font-size: 14px;
+  text-align: right;
 }

@@ -1,10 +1,11 @@
 import { LayoutDashboard, History, BarChart2, Settings } from 'lucide-react'
+import { useTranslation } from '../i18n.js'
 
 const TABS = [
-  { id: 'dashboard', label: 'Home',      Icon: LayoutDashboard },
-  { id: 'history',   label: 'History',   Icon: History },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2 },
-  { id: 'settings',  label: 'Settings',  Icon: Settings },
+  { id: 'dashboard', tKey: 'nav.home',      Icon: LayoutDashboard },
+  { id: 'history',   tKey: 'nav.history',   Icon: History },
+  { id: 'analytics', tKey: 'nav.analytics', Icon: BarChart2 },
+  { id: 'settings',  tKey: 'nav.settings',  Icon: Settings },
 ]
 
 const styles = {
@@ -42,15 +43,16 @@ const styles = {
   }),
 }
 
-export default function BottomNav({ page, setPage }) {
+export default function BottomNav({ page, setPage, language }) {
+  const t = useTranslation(language)
   return (
     <nav style={styles.nav}>
-      {TABS.map(({ id, label, Icon }) => {
+      {TABS.map(({ id, tKey, Icon }) => {
         const active = page === id
         return (
           <button key={id} style={styles.tab(active)} onClick={() => setPage(id)}>
             <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
-            <span style={styles.label(active)}>{label}</span>
+            <span style={styles.label(active)}>{t(tKey)}</span>
           </button>
         )
       })}
