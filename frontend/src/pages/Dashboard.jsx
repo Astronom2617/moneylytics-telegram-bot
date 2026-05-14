@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus } from 'lucide-react'
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts'
-import { getStats, getExpenses } from '../api.js'
+import { getStats, getExpenses, deleteExpense } from '../api.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
+import ExpenseDetailModal from '../components/ExpenseDetailModal.jsx'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 
 const CATEGORY_COLORS = {
@@ -98,6 +99,8 @@ export default function Dashboard({ user }) {
   const [streak,      setStreak]      = useState(0)
   const [loading,     setLoading]     = useState(true)
   const [showModal,   setShowModal]   = useState(false)
+  const [detailOpen,  setDetailOpen]  = useState(false)
+  const [deleting,    setDeleting]    = useState(false)
 
   const cur  = user?.currency ?? 'EUR'
   const lang = user?.language ?? 'en'
@@ -119,6 +122,20 @@ export default function Dashboard({ user }) {
   useEffect(() => { loadAll() }, [loadAll])
 
   const handleExpenseAdded = () => loadAll()
+
+  const handleDeleteLastTx = async (id) => {
+    if (!window.confirm(t('history.confirmDelete'))) return
+    setDeleting(true)
+    try {
+      await deleteExpense(id)
+      setDetailOpen(false)
+      loadAll()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const greeting = () => {
     const h = new Date().getHours()
@@ -296,7 +313,11 @@ export default function Dashboard({ user }) {
               }}>
                 {t('dashboard.lastTx')}
               </p>
-              <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14 }}>
+              <div
+                className="card"
+                onClick={() => setDetailOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, cursor: 'pointer' }}
+              >
                 <div style={{
                   width: 44, height: 44, borderRadius: 12,
                   background: 'var(--accent-light)',
@@ -387,6 +408,16 @@ export default function Dashboard({ user }) {
           user={user}
           onClose={() => setShowModal(false)}
           onAdded={handleExpenseAdded}
+        />
+      )}
+
+      {detailOpen && lastTx && (
+        <ExpenseDetailModal
+          expense={lastTx}
+          language={lang}
+          onClose={() => setDetailOpen(false)}
+          onDelete={handleDeleteLastTx}
+          deleting={deleting}
         />
       )}
     </div>
