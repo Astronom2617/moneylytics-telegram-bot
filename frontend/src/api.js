@@ -30,8 +30,8 @@ export const authUser  = (initData) => request('POST', '/api/auth', { initData }
 // Расходы
 export const getExpenses    = (period = 'week')    => request('GET', `/api/expenses?period=${period}`)
 export const createExpense  = (data)               => request('POST', '/api/expenses', data)
+export const updateExpense  = (id, data)           => request('PUT', `/api/expenses/${id}`, data)
 export const deleteExpense  = (id)                 => request('DELETE', `/api/expenses/${id}`)
-export const updateExpense = (id, data) => request('PUT', `/api/expenses/${id}`, data)
 
 // Статистика
 export const getStats = (period = 'week') => request('GET', `/api/stats?period=${period}`)

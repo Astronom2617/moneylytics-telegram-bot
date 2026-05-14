@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { createExpense } from '../api.js'
+import { useTranslation } from '../i18n.js'
 
-// Категории с эмодзи — должны совпадать с тем что у тебя в боте
 const CATEGORIES = [
-  { id: 'Food',          emoji: '🍕', label: 'Food' },
-  { id: 'Transport',     emoji: '🚌', label: 'Transport' },
-  { id: 'Shopping',      emoji: '🛍',  label: 'Shopping' },
-  { id: 'Entertainment', emoji: '🎬', label: 'Entertainment' },
-  { id: 'Health',        emoji: '💊', label: 'Health' },
-  { id: 'Housing',       emoji: '🏠', label: 'Housing' },
-  { id: 'Utilities',     emoji: '💡', label: 'Utilities' },
-  { id: 'Education',     emoji: '📚', label: 'Education' },
-  { id: 'Travel',        emoji: '✈️',  label: 'Travel' },
-  { id: 'Gifts',         emoji: '🎁', label: 'Gifts' },
-  { id: 'Other',         emoji: '💰', label: 'Other' },
+  { id: 'Food',          emoji: '🍕' },
+  { id: 'Transport',     emoji: '🚌' },
+  { id: 'Shopping',      emoji: '🛍' },
+  { id: 'Entertainment', emoji: '🎬' },
+  { id: 'Health',        emoji: '💊' },
+  { id: 'Housing',       emoji: '🏠' },
+  { id: 'Utilities',     emoji: '💡' },
+  { id: 'Education',     emoji: '📚' },
+  { id: 'Travel',        emoji: '✈️' },
+  { id: 'Gifts',         emoji: '🎁' },
+  { id: 'Other',         emoji: '💰' },
 ]
 
 const overlay = {
@@ -39,6 +39,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
   const [description, setDescription] = useState('')
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState(null)
+  const t = useTranslation(user?.language)
 
   const handleSubmit = async () => {
     const amt = parseFloat(amount)
@@ -68,9 +69,8 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
   return (
     <div style={overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div style={sheet}>
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600 }}>New expense</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600 }}>{t('common.newExpense')}</h2>
           <button
             onClick={onClose}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tg-theme-hint-color)' }}
@@ -79,8 +79,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
           </button>
         </div>
 
-        {/* Amount */}
-        <label className="form-label">Amount ({user?.currency ?? 'EUR'})</label>
+        <label className="form-label">{t('common.amount')} ({user?.currency ?? 'EUR'})</label>
         <input
           className="input"
           type="number"
@@ -92,8 +91,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
           autoFocus
         />
 
-        {/* Category */}
-        <label className="form-label">Category</label>
+        <label className="form-label">{t('common.category')}</label>
         <div className="chips" style={{ marginBottom: 16 }}>
           {CATEGORIES.map((cat) => (
             <button
@@ -101,17 +99,16 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
               className={`chip ${category === cat.id ? 'active' : ''}`}
               onClick={() => setCategory(cat.id)}
             >
-              {cat.emoji} {cat.label}
+              {cat.emoji} {t(`cat.${cat.id}`)}
             </button>
           ))}
         </div>
 
-        {/* Description */}
-        <label className="form-label">Note (optional)</label>
+        <label className="form-label">{t('common.noteOptional')}</label>
         <input
           className="input"
           type="text"
-          placeholder="e.g. lunch with friends"
+          placeholder={t('common.notePlaceholder')}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           style={{ marginBottom: 20 }}
@@ -122,7 +119,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
         )}
 
         <button className="btn-accent" onClick={handleSubmit} disabled={loading}>
-          {loading ? 'Saving…' : 'Add expense'}
+          {loading ? t('history.saving') : t('common.addExpense')}
         </button>
       </div>
     </div>

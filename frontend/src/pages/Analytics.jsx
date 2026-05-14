@@ -4,12 +4,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
 import { getStats } from '../api.js'
+import { useTranslation, translateCategory } from '../i18n.js'
 
-const PERIODS = [
-  { id: 'today', label: 'Today' },
-  { id: 'week',  label: 'Week' },
-  { id: 'month', label: 'Month' },
-]
+const PERIOD_IDS = ['today', 'week', 'month']
 
 // Цвета для категорий — достаточно контрастны на светлом и тёмном фоне
 const COLORS = [
@@ -42,6 +39,8 @@ export default function Analytics({ user }) {
   const [loading, setLoading] = useState(true)
 
   const cur = user?.currency ?? 'EUR'
+  const lang = user?.language ?? 'en'
+  const t = useTranslation(lang)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -56,17 +55,17 @@ export default function Analytics({ user }) {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Analytics</h1>
+        <h1 className="page-title">{t('page.analytics')}</h1>
       </div>
 
       <div className="period-tabs">
-        {PERIODS.map((p) => (
+        {PERIOD_IDS.map((id) => (
           <button
-            key={p.id}
-            className={`period-tab ${period === p.id ? 'active' : ''}`}
-            onClick={() => setPeriod(p.id)}
+            key={id}
+            className={`period-tab ${period === id ? 'active' : ''}`}
+            onClick={() => setPeriod(id)}
           >
-            {p.label}
+            {t(`period.${id}`)}
           </button>
         ))}
       </div>
@@ -78,16 +77,16 @@ export default function Analytics({ user }) {
       ) : stats.by_category.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">📊</div>
-          <p>No data for this period</p>
+          <p>{t('analytics.noData')}</p>
         </div>
       ) : (
         <>
           {/* Суммарная карточка */}
           <div className="card" style={{ display: 'flex', gap: 12 }}>
             {[
-              { label: 'Today',  value: stats.today },
-              { label: 'Week',   value: stats.week },
-              { label: 'Month',  value: stats.month },
+              { label: t('period.today'),  value: stats.today },
+              { label: t('period.week'),   value: stats.week },
+              { label: t('period.month'),  value: stats.month },
             ].map(({ label, value }) => (
               <div key={label} style={{ flex: 1, textAlign: 'center' }}>
                 <p style={{ fontSize: 11, color: 'var(--tg-theme-hint-color)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
@@ -100,6 +99,15 @@ export default function Analytics({ user }) {
             ))}
           </div>
 
+          <p style={{
+            fontSize: 11,
+            color: 'var(--tg-theme-hint-color)',
+            fontStyle: 'italic',
+            margin: '-4px 4px 12px',
+          }}>
+            ℹ️ {t('analytics.totalsNote')}
+          </p>
+
           {/* Pie chart — по категориям */}
           <p style={{
             fontSize: 13, fontWeight: 600,
@@ -108,7 +116,7 @@ export default function Analytics({ user }) {
             letterSpacing: '0.5px',
             marginBottom: 12,
           }}>
-            By category
+            {t('analytics.byCategory')}
           </p>
           <div className="card">
             <ResponsiveContainer width="100%" height={220}>
@@ -139,7 +147,7 @@ export default function Analytics({ user }) {
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 10, height: 10, borderRadius: 3, background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 14 }}>{item.category}</span>
+                    <span style={{ flex: 1, fontSize: 14 }}>{translateCategory(item.category, lang)}</span>
                     <span className="amount" style={{ fontSize: 14, color: 'var(--tg-theme-hint-color)' }}>{pct}%</span>
                     <span className="amount" style={{ fontSize: 14, fontWeight: 500 }}>{cur} {item.total.toFixed(2)}</span>
                   </div>
@@ -157,7 +165,7 @@ export default function Analytics({ user }) {
             marginBottom: 12,
             marginTop: 4,
           }}>
-            Last 7 days
+            {t('analytics.last7Days')}
           </p>
           <div className="card">
             <ResponsiveContainer width="100%" height={180}>

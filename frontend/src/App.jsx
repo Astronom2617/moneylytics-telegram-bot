@@ -75,7 +75,7 @@ export default function App() {
       <div className="page-content">
         {pages[page]}
       </div>
-      <BottomNav page={page} setPage={setPage} />
+      <BottomNav page={page} setPage={setPage} language={user?.language} />
     </div>
   )
 }
