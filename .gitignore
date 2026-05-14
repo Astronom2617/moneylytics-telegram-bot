@@ -21,3 +21,6 @@ Thumbs.db
 
 # Frontend build
 frontend/node_modules/
+
+# Claude AI
+.claude/
