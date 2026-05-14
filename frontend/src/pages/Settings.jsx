@@ -66,9 +66,12 @@ export default function Settings({ user, setUser }) {
           className="input"
           type="number"
           inputMode="decimal"
+          min="0"
+          step="0.01"
           placeholder={t('settings.noLimit')}
           value={dailyBudget}
           onChange={(e) => setDailyBudget(e.target.value)}
+          onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
           style={{ marginBottom: 14 }}
         />
         <label className="form-label">{t('settings.weeklyLimit')}</label>
@@ -76,9 +79,12 @@ export default function Settings({ user, setUser }) {
           className="input"
           type="number"
           inputMode="decimal"
+          min="0"
+          step="0.01"
           placeholder={t('settings.noLimit')}
           value={weeklyBudget}
           onChange={(e) => setWeeklyBudget(e.target.value)}
+          onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
         />
       </div>
 

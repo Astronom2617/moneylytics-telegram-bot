@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { createExpense } from '../api.js'
 import { useTranslation } from '../i18n.js'
+import BottomSheet from './BottomSheet.jsx'
 
 const CATEGORIES = [
   { id: 'Food',          emoji: '🍕' },
@@ -17,22 +18,6 @@ const CATEGORIES = [
   { id: 'Other',         emoji: '💰' },
 ]
 
-const overlay = {
-  position: 'fixed', inset: 0,
-  background: 'rgba(0,0,0,0.45)',
-  display: 'flex', alignItems: 'flex-end',
-  zIndex: 300,
-}
-
-const sheet = {
-  width: '100%',
-  background: 'var(--tg-theme-bg-color)',
-  borderRadius: '20px 20px 0 0',
-  padding: '20px 16px 32px',
-  maxHeight: '90vh',
-  overflowY: 'auto',
-}
-
 export default function AddExpenseModal({ user, onClose, onAdded }) {
   const [amount,      setAmount]      = useState('')
   const [category,    setCategory]    = useState('Food')
@@ -41,7 +26,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
   const [error,       setError]       = useState(null)
   const t = useTranslation(user?.language)
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (close) => {
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) {
       setError('Enter a valid amount')
@@ -59,7 +44,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
         timezone_offset: new Date().getTimezoneOffset(),
       })
       onAdded(expense)
-      onClose()
+      close()
     } catch (e) {
       setError('Failed to save. Try again.')
     } finally {
@@ -68,61 +53,66 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
   }
 
   return (
-    <div style={overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={sheet}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600 }}>{t('common.newExpense')}</h2>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tg-theme-hint-color)' }}
-          >
-            <X size={22} />
-          </button>
-        </div>
-
-        <label className="form-label">{t('common.amount')} ({user?.currency ?? 'EUR'})</label>
-        <input
-          className="input"
-          type="number"
-          inputMode="decimal"
-          placeholder="0.00"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          style={{ fontSize: 24, fontFamily: 'var(--font-mono)', marginBottom: 16 }}
-          autoFocus
-        />
-
-        <label className="form-label">{t('common.category')}</label>
-        <div className="chips" style={{ marginBottom: 16 }}>
-          {CATEGORIES.map((cat) => (
+    <BottomSheet onClose={onClose}>
+      {(close) => (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600 }}>{t('common.newExpense')}</h2>
             <button
-              key={cat.id}
-              className={`chip ${category === cat.id ? 'active' : ''}`}
-              onClick={() => setCategory(cat.id)}
+              onClick={close}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tg-theme-hint-color)' }}
             >
-              {cat.emoji} {t(`cat.${cat.id}`)}
+              <X size={22} />
             </button>
-          ))}
-        </div>
+          </div>
 
-        <label className="form-label">{t('common.noteOptional')}</label>
-        <input
-          className="input"
-          type="text"
-          placeholder={t('common.notePlaceholder')}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          style={{ marginBottom: 20 }}
-        />
+          <label className="form-label">{t('common.amount')} ({user?.currency ?? 'EUR'})</label>
+          <input
+            className="input"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
+            style={{ fontSize: 24, fontFamily: 'var(--font-mono)', marginBottom: 16 }}
+            autoFocus
+          />
 
-        {error && (
-          <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{error}</p>
-        )}
+          <label className="form-label">{t('common.category')}</label>
+          <div className="chips" style={{ marginBottom: 16 }}>
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                className={`chip ${category === cat.id ? 'active' : ''}`}
+                onClick={() => setCategory(cat.id)}
+              >
+                {cat.emoji} {t(`cat.${cat.id}`)}
+              </button>
+            ))}
+          </div>
 
-        <button className="btn-accent" onClick={handleSubmit} disabled={loading}>
-          {loading ? t('history.saving') : t('common.addExpense')}
-        </button>
-      </div>
-    </div>
+          <label className="form-label">{t('common.noteOptional')}</label>
+          <input
+            className="input"
+            type="text"
+            placeholder={t('common.notePlaceholder')}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            style={{ marginBottom: 20 }}
+          />
+
+          {error && (
+            <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{error}</p>
+          )}
+
+          <button className="btn-accent" onClick={() => handleSubmit(close)} disabled={loading}>
+            {loading ? t('history.saving') : t('common.addExpense')}
+          </button>
+        </>
+      )}
+    </BottomSheet>
   )
 }
