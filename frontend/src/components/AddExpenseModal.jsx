@@ -36,12 +36,17 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
     setLoading(true)
     setError(null)
     try {
+      const now = new Date()
+      const pad = (n) => String(n).padStart(2, '0')
+      const client_now = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+
       const expense = await createExpense({
         amount: amt,
         category,
         description: description.trim() || undefined,
         currency: user?.currency ?? 'EUR',
-        timezone_offset: new Date().getTimezoneOffset(),
+        client_now,
+        timezone_offset: now.getTimezoneOffset(),
       })
       onAdded(expense)
       close()

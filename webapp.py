@@ -128,17 +128,24 @@ def create_expense(body: dict, user_id: int = Depends(get_current_user_id), db: 
     user = db.query(User).filter(User.id == user_id).first()
     currency = body.get("currency") or (user.currency if user else "EUR")
 
-    # Корректировка времени по часовому поясу клиента.
-    # JS Date.getTimezoneOffset() возвращает минуты к ЗАПАДУ от UTC
-    # (для UTC+1 это -60). Чтобы получить локальное время клиента
-    # из UTC: local = utc - offset_minutes.
+    # Время создания: предпочитаем готовую локальную ISO-строку от клиента
+    # (client_now = "YYYY-MM-DDTHH:MM:SS" в его локальной зоне), иначе
+    # корректируем utcnow() по timezone_offset (минуты, как у JS
+    # getTimezoneOffset — для UTC+1 это -60).
     created_at = datetime.utcnow()
-    tz_offset = body.get("timezone_offset")
-    if tz_offset is not None:
+    client_now = body.get("client_now")
+    if client_now:
         try:
-            created_at = created_at - timedelta(minutes=int(tz_offset))
+            created_at = datetime.fromisoformat(client_now)
         except (TypeError, ValueError):
-            pass
+            client_now = None
+    if not client_now:
+        tz_offset = body.get("timezone_offset")
+        if tz_offset is not None:
+            try:
+                created_at = created_at - timedelta(minutes=int(tz_offset))
+            except (TypeError, ValueError):
+                pass
 
     expense = Expense(
         user_id=user_id,
