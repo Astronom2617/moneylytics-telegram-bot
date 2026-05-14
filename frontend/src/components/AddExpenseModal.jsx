@@ -27,7 +27,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
   const t = useTranslation(user?.language)
 
   const handleSubmit = async (close) => {
-    const amt = parseFloat(amount)
+    const amt = parseFloat(String(amount).replace(',', '.'))
     if (!amt || amt <= 0) {
       setError('Enter a valid amount')
       return
@@ -74,14 +74,19 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
           <label className="form-label">{t('common.amount')} ({user?.currency ?? 'EUR'})</label>
           <input
             className="input"
-            type="number"
+            type="text"
             inputMode="decimal"
-            min="0"
-            step="0.01"
             placeholder="0.00"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v === '' || /^[0-9]*[.,]?[0-9]*$/.test(v)) setAmount(v)
+            }}
+            onKeyDown={(e) => {
+              if (e.key.length === 1 && !/[0-9.,]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+                e.preventDefault()
+              }
+            }}
             style={{ fontSize: 24, fontFamily: 'var(--font-mono)', marginBottom: 16 }}
             autoFocus
           />
