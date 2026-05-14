@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { updateUser } from '../api.js'
 
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'RUB', 'PLN', 'CZK']
-const LANGUAGES  = [
+const CURRENCIES = ['EUR', 'USD', 'UAH', 'GBP']
+const LANGUAGES = [
   { id: 'en', label: '🇬🇧 English' },
   { id: 'ru', label: '🇷🇺 Русский' },
+  { id: 'uk', label: '🇺🇦 Українська' },
 ]
 
 export default function Settings({ user, setUser }) {
