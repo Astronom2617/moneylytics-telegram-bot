@@ -56,6 +56,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
         category,
         description: description.trim() || undefined,
         currency: user?.currency ?? 'EUR',
+        timezone_offset: new Date().getTimezoneOffset(),
       })
       onAdded(expense)
       onClose()

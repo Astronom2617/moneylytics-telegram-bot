@@ -127,12 +127,26 @@ def create_expense(body: dict, user_id: int = Depends(get_current_user_id), db: 
         raise HTTPException(status_code=400, detail="amount must be positive")
     user = db.query(User).filter(User.id == user_id).first()
     currency = body.get("currency") or (user.currency if user else "EUR")
+
+    # Корректировка времени по часовому поясу клиента.
+    # JS Date.getTimezoneOffset() возвращает минуты к ЗАПАДУ от UTC
+    # (для UTC+1 это -60). Чтобы получить локальное время клиента
+    # из UTC: local = utc - offset_minutes.
+    created_at = datetime.utcnow()
+    tz_offset = body.get("timezone_offset")
+    if tz_offset is not None:
+        try:
+            created_at = created_at - timedelta(minutes=int(tz_offset))
+        except (TypeError, ValueError):
+            pass
+
     expense = Expense(
         user_id=user_id,
         amount=float(amount),
         category=body.get("category", "other").lower(),
         currency=currency,
         description=body.get("description"),
+        created_at=created_at,
     )
     db.add(expense)
     db.commit()
@@ -181,11 +195,11 @@ def get_stats(period: str = "week", user_id: int = Depends(get_current_user_id),
     week_start  = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    def total_since(dt):
-        r = db.query(func.sum(Expense.amount)).filter(
+    def totals_by_currency_since(dt):
+        rows = db.query(Expense.currency, func.sum(Expense.amount)).filter(
             and_(Expense.user_id == user_id, Expense.created_at >= dt)
-        ).scalar()
-        return round(r or 0.0, 2)
+        ).group_by(Expense.currency).all()
+        return {row[0] or "EUR": round(float(row[1] or 0.0), 2) for row in rows}
 
     def count_since(dt):
         return db.query(func.count(Expense.id)).filter(
@@ -208,9 +222,9 @@ def get_stats(period: str = "week", user_id: int = Depends(get_current_user_id),
         daily.append({"date": day_start.strftime("%a"), "total": round(r or 0.0, 2)})
 
     return {
-        "today": total_since(today_start),
-        "week":  total_since(week_start),
-        "month": total_since(month_start),
+        "today": totals_by_currency_since(today_start),
+        "week":  totals_by_currency_since(week_start),
+        "month": totals_by_currency_since(month_start),
         "count_today": count_since(today_start),
         "count_week":  count_since(week_start),
         "count_month": count_since(month_start),

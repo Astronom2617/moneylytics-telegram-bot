@@ -6,32 +6,36 @@
 }
 
 :root {
-  /* Цвета Telegram (заполняются SDK, но нужны фолбеки для дев-режима) */
   --tg-theme-bg-color:            #ffffff;
-  --tg-theme-secondary-bg-color:  #f1f1f1;
-  --tg-theme-text-color:          #222222;
-  --tg-theme-hint-color:          #999999;
-  --tg-theme-button-color:        #3390ec;
+  --tg-theme-secondary-bg-color:  #f4f5f9;
+  --tg-theme-text-color:          #1c1c28;
+  --tg-theme-hint-color:          #8e8e93;
+  --tg-theme-button-color:        #6C63FF;
   --tg-theme-button-text-color:   #ffffff;
 
-  /* Moneylytics accent */
-  --accent:         #F59E0B;
-  --accent-light:   rgba(245, 158, 11, 0.12);
-  --success:        #22C55E;
-  --danger:         #EF4444;
-  --danger-light:   rgba(239, 68, 68, 0.10);
+  /* Moneylytics accent — purple/blue */
+  --accent:          #6C63FF;
+  --accent-light:    rgba(108, 99, 255, 0.12);
+  --accent-dark:     #5548E0;
+  --accent-gradient: linear-gradient(135deg, #6C63FF, #3B8BFF);
+  --success:         #22C55E;
+  --danger:          #EF4444;
+  --danger-light:    rgba(239, 68, 68, 0.10);
 
-  /* Радиусы */
-  --radius-sm:  8px;
-  --radius-md:  14px;
+  --radius-sm:  10px;
+  --radius-md:  16px;
   --radius-lg:  20px;
 
-  /* Шрифты */
   --font-body:  'DM Sans',  -apple-system, sans-serif;
   --font-mono:  'DM Mono',  'Courier New', monospace;
 
-  /* Safe area для notch */
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --shadow-card:    0 4px 20px rgba(108, 99, 255, 0.08);
+  --shadow-accent:  0 6px 20px rgba(108, 99, 255, 0.35);
+
+  --t-fast:  0.15s ease;
+  --t-base:  0.2s ease;
 }
 
 html, body, #root {
@@ -48,7 +52,7 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  height: 100dvh; /* dynamic viewport height — учитывает адресную строку браузера */
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -56,13 +60,11 @@ html, body, #root {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  /* Отступ снизу под нав-бар */
   padding-bottom: calc(68px + var(--safe-bottom));
   scrollbar-width: none;
 }
 .page-content::-webkit-scrollbar { display: none; }
 
-/* ── Общие компоненты ──────────────────────────────────────────────────────── */
 .page {
   padding: 20px 16px;
 }
@@ -86,10 +88,16 @@ html, body, #root {
 /* Карточка */
 .card {
   background: var(--tg-theme-secondary-bg-color);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--t-base), box-shadow var(--t-base);
+}
+
+.card-compact {
+  padding: 12px;
+  border-radius: 16px;
 }
 
 /* Кнопка основная */
@@ -104,50 +112,79 @@ html, body, #root {
   font-weight: 500;
   cursor: pointer;
   width: 100%;
-  transition: opacity 0.15s;
+  transition: transform var(--t-fast), opacity var(--t-fast), box-shadow var(--t-fast);
 }
-.btn-primary:active { opacity: 0.8; }
+.btn-primary:active { opacity: 0.85; transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Кнопка акцентная */
+/* Кнопка акцентная — фиолетовый градиент */
 .btn-accent {
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
-  padding: 12px 20px;
+  padding: 13px 20px;
   font-family: var(--font-body);
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   width: 100%;
-  transition: opacity 0.15s;
+  box-shadow: var(--shadow-accent);
+  transition: transform var(--t-fast), box-shadow var(--t-fast), opacity var(--t-fast);
 }
-.btn-accent:active { opacity: 0.85; }
+.btn-accent:active { transform: scale(0.98); box-shadow: 0 3px 10px rgba(108, 99, 255, 0.30); }
+.btn-accent:disabled { opacity: 0.6; }
 
 /* FAB — кнопка добавления */
 .fab {
   position: fixed;
   bottom: calc(76px + var(--safe-bottom));
   right: 20px;
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   border: none;
   font-size: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.40);
+  box-shadow: var(--shadow-accent);
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform var(--t-base), box-shadow var(--t-base);
   z-index: 100;
 }
 .fab:active {
   transform: scale(0.92);
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.30);
+  box-shadow: 0 2px 8px rgba(108, 99, 255, 0.30);
+}
+
+/* Extended FAB — pill с текстом */
+.fab-extended {
+  position: fixed;
+  bottom: calc(76px + var(--safe-bottom));
+  right: 20px;
+  height: 52px;
+  padding: 0 22px 0 18px;
+  border-radius: 26px;
+  background: var(--accent-gradient);
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  box-shadow: var(--shadow-accent);
+  cursor: pointer;
+  transition: transform var(--t-base), box-shadow var(--t-base);
+  z-index: 100;
+}
+.fab-extended:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 10px rgba(108, 99, 255, 0.30);
 }
 
 /* Числа */
@@ -156,18 +193,18 @@ html, body, #root {
   font-weight: 500;
 }
 
-/* Полоса бюджета */
+/* Полоса бюджета — 8px скруглённая */
 .progress-bar {
-  height: 6px;
-  border-radius: 3px;
+  height: 8px;
+  border-radius: 8px;
   background: var(--tg-theme-bg-color);
   overflow: hidden;
   margin-top: 8px;
 }
 .progress-fill {
   height: 100%;
-  border-radius: 3px;
-  transition: width 0.4s ease;
+  border-radius: 8px;
+  transition: width 0.5s ease;
 }
 
 /* Пустое состояние */
@@ -199,7 +236,7 @@ html, body, #root {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Chip-выбор (категории) */
+/* Chip-выбор */
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -207,7 +244,7 @@ html, body, #root {
   margin: 8px 0;
 }
 .chip {
-  padding: 6px 12px;
+  padding: 7px 13px;
   border-radius: 20px;
   background: var(--tg-theme-secondary-bg-color);
   color: var(--tg-theme-text-color);
@@ -215,13 +252,14 @@ html, body, #root {
   font-size: 13px;
   cursor: pointer;
   font-family: var(--font-body);
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--t-base), background var(--t-base), color var(--t-base), transform var(--t-fast);
 }
+.chip:active { transform: scale(0.96); }
 .chip.active {
   border-color: var(--accent);
   background: var(--accent-light);
   color: var(--accent);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Инпут */
@@ -235,7 +273,7 @@ html, body, #root {
   font-family: var(--font-body);
   font-size: 15px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color var(--t-base), background var(--t-base);
 }
 .input:focus {
   border-color: var(--accent);
@@ -254,7 +292,6 @@ html, body, #root {
   display: block;
 }
 
-/* Разделитель */
 .divider {
   height: 1px;
   background: var(--tg-theme-secondary-bg-color);
@@ -266,29 +303,30 @@ html, body, #root {
   display: flex;
   background: var(--tg-theme-secondary-bg-color);
   border-radius: var(--radius-sm);
-  padding: 3px;
+  padding: 4px;
   margin-bottom: 16px;
 }
 .period-tab {
   flex: 1;
-  padding: 7px;
+  padding: 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: var(--tg-theme-hint-color);
   font-size: 13px;
   font-family: var(--font-body);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--t-base), color var(--t-base), box-shadow var(--t-base), transform var(--t-fast);
 }
+.period-tab:active { transform: scale(0.97); }
 .period-tab.active {
-  background: var(--tg-theme-bg-color);
-  color: var(--tg-theme-text-color);
-  font-weight: 500;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  background: var(--accent-gradient);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(108, 99, 255, 0.25);
 }
 
-/* ── Modal (detail sheet) ─────────────────────────────────────────────────── */
+/* ── Modal (slide-up sheet) ───────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -296,6 +334,7 @@ html, body, #root {
   display: flex;
   align-items: flex-end;
   z-index: 300;
+  animation: fadeIn 0.2s ease;
 }
 .modal-sheet {
   width: 100%;
@@ -304,6 +343,15 @@ html, body, #root {
   padding: 20px 16px 32px;
   max-height: 90vh;
   overflow-y: auto;
+  animation: slideUp 0.25s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 
 /* Danger button */
@@ -318,9 +366,9 @@ html, body, #root {
   font-weight: 500;
   cursor: pointer;
   width: 100%;
-  transition: opacity 0.15s;
+  transition: opacity var(--t-fast), transform var(--t-fast);
 }
-.btn-danger:active { opacity: 0.8; }
+.btn-danger:active { opacity: 0.8; transform: scale(0.98); }
 .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Detail rows */
@@ -338,4 +386,41 @@ html, body, #root {
 .detail-value {
   font-size: 14px;
   text-align: right;
+}
+
+/* Compact stat card — used on Dashboard horizontal row */
+.stat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.stat-card {
+  background: var(--tg-theme-secondary-bg-color);
+  border-radius: 16px;
+  padding: 12px 10px;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--t-base);
+}
+.stat-card:active { transform: scale(0.98); }
+.stat-card .stat-label {
+  font-size: 11px;
+  color: var(--tg-theme-hint-color);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+}
+.stat-card .stat-value {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 4px;
+  line-height: 1.2;
+  word-break: break-word;
+}
+.stat-card .stat-extra {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--tg-theme-hint-color);
+  margin-top: 2px;
 }

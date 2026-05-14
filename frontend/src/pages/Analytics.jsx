@@ -16,8 +16,10 @@ const COLORS = [
 ]
 
 // Кастомный tooltip для Recharts — стилизован под TMA
-const CustomTooltip = ({ active, payload, currency }) => {
+const CustomTooltip = ({ active, payload, currency, language, translateName }) => {
   if (!active || !payload?.length) return null
+  const rawName = payload[0].name || payload[0].payload?.date
+  const name = translateName ? translateName(rawName) : rawName
   return (
     <div style={{
       background: 'var(--tg-theme-bg-color)',
@@ -25,7 +27,7 @@ const CustomTooltip = ({ active, payload, currency }) => {
       borderRadius: 8, padding: '8px 12px',
       fontSize: 13,
     }}>
-      <p style={{ fontWeight: 500 }}>{payload[0].name || payload[0].payload?.date}</p>
+      <p style={{ fontWeight: 500 }}>{name}</p>
       <p style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
         {currency} {Number(payload[0].value).toFixed(2)}
       </p>
@@ -87,16 +89,25 @@ export default function Analytics({ user }) {
               { label: t('period.today'),  value: stats.today },
               { label: t('period.week'),   value: stats.week },
               { label: t('period.month'),  value: stats.month },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ flex: 1, textAlign: 'center' }}>
-                <p style={{ fontSize: 11, color: 'var(--tg-theme-hint-color)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                  {label}
-                </p>
-                <p className="amount" style={{ fontSize: 16, fontWeight: 500, marginTop: 2 }}>
-                  {cur} {value.toFixed(0)}
-                </p>
-              </div>
-            ))}
+            ].map(({ label, value }) => {
+              const entries = Object.entries(value || {})
+              return (
+                <div key={label} style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+                  <p style={{ fontSize: 11, color: 'var(--tg-theme-hint-color)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                    {label}
+                  </p>
+                  {entries.length === 0 ? (
+                    <p className="amount" style={{ fontSize: 16, fontWeight: 500, marginTop: 2 }}>
+                      {cur} 0
+                    </p>
+                  ) : entries.map(([c, v]) => (
+                    <p key={c} className="amount" style={{ fontSize: 14, fontWeight: 500, marginTop: 2, lineHeight: 1.25 }}>
+                      {c} {v.toFixed(0)}
+                    </p>
+                  ))}
+                </div>
+              )
+            })}
           </div>
 
           <p style={{
@@ -135,7 +146,7 @@ export default function Analytics({ user }) {
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip currency={cur} />} />
+                <Tooltip content={<CustomTooltip currency={cur} translateName={(n) => translateCategory(n, lang)} />} />
               </PieChart>
             </ResponsiveContainer>
 
@@ -183,7 +194,7 @@ export default function Analytics({ user }) {
                   tickLine={false}
                 />
                 <Tooltip content={<CustomTooltip currency={cur} />} cursor={{ fill: 'var(--accent-light)' }} />
-                <Bar dataKey="total" name="Spent" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total" name={t('dashboard.spent')} fill="var(--accent)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
