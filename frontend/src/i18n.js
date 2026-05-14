@@ -39,6 +39,8 @@ const dict = {
     'dashboard.lastTx':           'Last transaction',
     'dashboard.add':              'Add',
     'dashboard.noTx':             'No transactions yet',
+    'dashboard.streak':           'day streak',
+    'dashboard.streakNone':       'Start your streak',
 
     // History
     'history.transactions':       'transactions',
@@ -135,6 +137,8 @@ const dict = {
     'dashboard.lastTx':           'Последняя операция',
     'dashboard.add':              'Добавить',
     'dashboard.noTx':             'Операций пока нет',
+    'dashboard.streak':           'дней подряд',
+    'dashboard.streakNone':       'Начни серию',
 
     'history.transactions':       'операций',
     'history.noExpenses':         'Нет расходов',
@@ -226,6 +230,8 @@ const dict = {
     'dashboard.lastTx':           'Остання операція',
     'dashboard.add':              'Додати',
     'dashboard.noTx':             'Операцій поки немає',
+    'dashboard.streak':           'днів поспіль',
+    'dashboard.streakNone':       'Почни серію',
 
     'history.transactions':       'операцій',
     'history.noExpenses':         'Немає витрат',

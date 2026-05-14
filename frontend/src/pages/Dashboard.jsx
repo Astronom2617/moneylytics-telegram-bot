@@ -30,6 +30,23 @@ function capCat(cat) {
   return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
 }
 
+function ymd(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function computeStreak(expenses) {
+  if (!expenses || !expenses.length) return 0
+  const days = new Set(expenses.map((e) => e.created_at.slice(0, 10)))
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  let streak = 0
+  while (days.has(ymd(d))) {
+    streak++
+    d.setDate(d.getDate() - 1)
+  }
+  return streak
+}
+
 function formatTotals(value, fallbackCur) {
   const entries = Object.entries(value || {})
   if (entries.length === 0) return `${fallbackCur} 0`
@@ -67,7 +84,7 @@ const SparkTooltip = ({ active, payload, currency }) => {
       borderRadius: 8, padding: '6px 10px',
       fontSize: 12,
     }}>
-      <p style={{ fontWeight: 500 }}>{payload[0].payload?.date}</p>
+      <p style={{ fontWeight: 500 }}>{payload[0].payload?.label || payload[0].payload?.date}</p>
       <p style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
         {currency} {Number(payload[0].value).toFixed(2)}
       </p>
@@ -78,6 +95,7 @@ const SparkTooltip = ({ active, payload, currency }) => {
 export default function Dashboard({ user }) {
   const [stats,       setStats]       = useState(null)
   const [lastTx,      setLastTx]      = useState(null)
+  const [streak,      setStreak]      = useState(0)
   const [loading,     setLoading]     = useState(true)
   const [showModal,   setShowModal]   = useState(false)
 
@@ -92,6 +110,7 @@ export default function Dashboard({ user }) {
       .then(([s, list]) => {
         setStats(s)
         setLastTx(list[0] || null)
+        setStreak(computeStreak(list))
       })
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -117,15 +136,64 @@ export default function Dashboard({ user }) {
   const txWord = (n) => n === 1 ? t('dashboard.transaction') : t('dashboard.transactions')
 
   const lastTxCat = lastTx ? capCat(lastTx.category) : null
+  const initial = (user?.first_name ?? 'U').trim().charAt(0).toUpperCase() || 'U'
+
+  const dailyData = (stats?.daily_last_7 || []).map((d) => ({
+    ...d,
+    label: (() => {
+      try { return new Date(d.date + 'T00:00:00').toLocaleDateString(locale, { weekday: 'short' }) }
+      catch { return d.date }
+    })(),
+  }))
 
   return (
     <div className="page">
-      <div className="page-header">
-        <p style={{ fontSize: 14, color: 'var(--tg-theme-hint-color)' }}>{greeting()}</p>
-        <h1 style={{ fontSize: 26, fontWeight: 700 }}>{user?.first_name ?? 'there'} 👋</h1>
-        <p style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)', marginTop: 4, textTransform: 'capitalize' }}>
-          {todayDate}
-        </p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 14, color: 'var(--tg-theme-hint-color)' }}>{greeting()}</p>
+          <h1 style={{ fontSize: 26, fontWeight: 700 }}>{user?.first_name ?? 'there'} 👋</h1>
+          <p style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)', marginTop: 4, textTransform: 'capitalize' }}>
+            {todayDate}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: '50%',
+            background: 'var(--accent-gradient)',
+            color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, fontWeight: 700,
+            boxShadow: 'var(--shadow-accent)',
+            letterSpacing: 0,
+          }}>
+            {initial}
+          </div>
+          {streak > 0 ? (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              background: 'var(--accent-light)',
+              color: 'var(--accent-dark)',
+              borderRadius: 999,
+              padding: '3px 9px',
+              fontSize: 11,
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+            }} title={`${streak} ${t('dashboard.streak')}`}>
+              🔥 {streak} {t('dashboard.streak')}
+            </div>
+          ) : (
+            <div style={{
+              fontSize: 10,
+              color: 'var(--tg-theme-hint-color)',
+              textAlign: 'center',
+              maxWidth: 80,
+              lineHeight: 1.2,
+            }}>
+              {t('dashboard.streakNone')}
+            </div>
+          )}
+        </div>
       </div>
 
       {loading || !stats ? (
@@ -195,10 +263,10 @@ export default function Dashboard({ user }) {
           )}
 
           {/* Sparkline — последние 7 дней */}
-          {stats.daily_last_7 && stats.daily_last_7.some((d) => d.total > 0) && (
+          {dailyData.some((d) => d.total > 0) && (
             <div className="card" style={{ padding: '10px 8px 4px' }}>
               <ResponsiveContainer width="100%" height={80}>
-                <BarChart data={stats.daily_last_7} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                <BarChart data={dailyData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
                   <Tooltip content={<SparkTooltip currency={cur} />} cursor={{ fill: 'var(--accent-light)' }} />
                   <Bar dataKey="total" fill="var(--accent)" radius={[4, 4, 0, 0]} />
                 </BarChart>

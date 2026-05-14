@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Trash2, Plus, X, Pencil } from 'lucide-react'
 import { getExpenses, deleteExpense, updateExpense } from '../api.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
+import BottomSheet from '../components/BottomSheet.jsx'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 
 const PERIOD_IDS = ['today', 'week', 'month', 'all']
@@ -69,69 +70,71 @@ function ExpenseDetailModal({ expense, language, onClose, onDelete, onEdit, dele
   const catKey = expense.category.charAt(0).toUpperCase() + expense.category.slice(1).toLowerCase()
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-sheet">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600 }}>{t('history.details')}</h2>
+    <BottomSheet onClose={onClose}>
+      {(close) => (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600 }}>{t('history.details')}</h2>
+            <button
+              onClick={close}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tg-theme-hint-color)' }}
+            >
+              <X size={22} />
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 14,
+              background: 'var(--accent-light)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 24, flexShrink: 0,
+            }}>
+              {getCategoryEmoji(catKey)}
+            </div>
+            <div>
+              <p style={{ fontSize: 17, fontWeight: 600 }}>{translateCategory(expense.category, language)}</p>
+              <p className="amount" style={{ fontSize: 26, fontWeight: 500, marginTop: 2 }}>
+                {expense.currency} {expense.amount.toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: '14px 16px', marginBottom: 12 }}>
+            <div className="detail-row">
+              <span className="detail-label">{t('history.dateTime')}</span>
+              <span className="detail-value">{formatDateTime(expense.created_at, locale)}</span>
+            </div>
+            {expense.description && (
+              <>
+                <div style={{ height: 1, background: 'var(--tg-theme-bg-color)', margin: '10px 0' }} />
+                <div className="detail-row">
+                  <span className="detail-label">{t('history.note')}</span>
+                  <span className="detail-value">{expense.description}</span>
+                </div>
+              </>
+            )}
+          </div>
+
           <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tg-theme-hint-color)' }}
+            className="btn-primary"
+            onClick={onEdit}
+            style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           >
-            <X size={22} />
+            <Pencil size={16} /> {t('history.edit')}
           </button>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: 14,
-            background: 'var(--accent-light)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 24, flexShrink: 0,
-          }}>
-            {getCategoryEmoji(catKey)}
-          </div>
-          <div>
-            <p style={{ fontSize: 17, fontWeight: 600 }}>{translateCategory(expense.category, language)}</p>
-            <p className="amount" style={{ fontSize: 26, fontWeight: 500, marginTop: 2 }}>
-              {expense.currency} {expense.amount.toFixed(2)}
-            </p>
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: '14px 16px', marginBottom: 12 }}>
-          <div className="detail-row">
-            <span className="detail-label">{t('history.dateTime')}</span>
-            <span className="detail-value">{formatDateTime(expense.created_at, locale)}</span>
-          </div>
-          {expense.description && (
-            <>
-              <div style={{ height: 1, background: 'var(--tg-theme-bg-color)', margin: '10px 0' }} />
-              <div className="detail-row">
-                <span className="detail-label">{t('history.note')}</span>
-                <span className="detail-value">{expense.description}</span>
-              </div>
-            </>
-          )}
-        </div>
-
-        <button
-          className="btn-primary"
-          onClick={onEdit}
-          style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-        >
-          <Pencil size={16} /> {t('history.edit')}
-        </button>
-
-        <button
-          className="btn-danger"
-          onClick={() => onDelete(expense.id)}
-          disabled={deleting}
-          style={{ marginTop: 10 }}
-        >
-          {deleting ? t('history.deleting') : t('history.delete')}
-        </button>
-      </div>
-    </div>
+          <button
+            className="btn-danger"
+            onClick={() => onDelete(expense.id)}
+            disabled={deleting}
+            style={{ marginTop: 10 }}
+          >
+            {deleting ? t('history.deleting') : t('history.delete')}
+          </button>
+        </>
+      )}
+    </BottomSheet>
   )
 }
 
@@ -144,7 +147,7 @@ function ExpenseEditModal({ expense, language, onClose, onSaved }) {
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState(null)
 
-  const handleSave = async () => {
+  const handleSave = async (close) => {
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) {
       setError('Invalid amount')
@@ -159,6 +162,7 @@ function ExpenseEditModal({ expense, language, onClose, onSaved }) {
         description: description.trim() || null,
       })
       onSaved(updated)
+      close()
     } catch (e) {
       setError('Failed to save')
     } finally {
@@ -167,61 +171,66 @@ function ExpenseEditModal({ expense, language, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-sheet">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600 }}>{t('history.edit')}</h2>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tg-theme-hint-color)' }}
-          >
-            <X size={22} />
-          </button>
-        </div>
-
-        <label className="form-label">{t('common.amount')} ({expense.currency})</label>
-        <input
-          className="input"
-          type="number"
-          inputMode="decimal"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          style={{ fontSize: 24, fontFamily: 'var(--font-mono)', marginBottom: 16 }}
-          autoFocus
-        />
-
-        <label className="form-label">{t('common.category')}</label>
-        <div className="chips" style={{ marginBottom: 16 }}>
-          {CATEGORIES.map((cat) => (
+    <BottomSheet onClose={onClose}>
+      {(close) => (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600 }}>{t('history.edit')}</h2>
             <button
-              key={cat.id}
-              className={`chip ${category === cat.id ? 'active' : ''}`}
-              onClick={() => setCategory(cat.id)}
+              onClick={close}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tg-theme-hint-color)' }}
             >
-              {cat.emoji} {t(`cat.${cat.id}`)}
+              <X size={22} />
             </button>
-          ))}
-        </div>
+          </div>
 
-        <label className="form-label">{t('common.noteOptional')}</label>
-        <input
-          className="input"
-          type="text"
-          placeholder={t('common.notePlaceholder')}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          style={{ marginBottom: 20 }}
-        />
+          <label className="form-label">{t('common.amount')} ({expense.currency})</label>
+          <input
+            className="input"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
+            style={{ fontSize: 24, fontFamily: 'var(--font-mono)', marginBottom: 16 }}
+            autoFocus
+          />
 
-        {error && (
-          <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{error}</p>
-        )}
+          <label className="form-label">{t('common.category')}</label>
+          <div className="chips" style={{ marginBottom: 16 }}>
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                className={`chip ${category === cat.id ? 'active' : ''}`}
+                onClick={() => setCategory(cat.id)}
+              >
+                {cat.emoji} {t(`cat.${cat.id}`)}
+              </button>
+            ))}
+          </div>
 
-        <button className="btn-accent" onClick={handleSave} disabled={saving}>
-          {saving ? t('history.saving') : t('history.save')}
-        </button>
-      </div>
-    </div>
+          <label className="form-label">{t('common.noteOptional')}</label>
+          <input
+            className="input"
+            type="text"
+            placeholder={t('common.notePlaceholder')}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            style={{ marginBottom: 20 }}
+          />
+
+          {error && (
+            <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{error}</p>
+          )}
+
+          <button className="btn-accent" onClick={() => handleSave(close)} disabled={saving}>
+            {saving ? t('history.saving') : t('history.save')}
+          </button>
+        </>
+      )}
+    </BottomSheet>
   )
 }
 
