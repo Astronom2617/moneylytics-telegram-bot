@@ -33,7 +33,19 @@ const styles = {
     border: 'none',
     cursor: 'pointer',
     color: active ? 'var(--accent)' : 'var(--tg-theme-hint-color)',
-    transition: 'color 0.15s',
+    transition: 'color 0.2s ease, transform 0.15s ease',
+    position: 'relative',
+  }),
+  indicator: (active) => ({
+    position: 'absolute',
+    top: 0,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: active ? 28 : 0,
+    height: 3,
+    borderRadius: 3,
+    background: 'var(--accent-gradient, var(--accent))',
+    transition: 'width 0.25s ease',
   }),
   label: (active) => ({
     fontSize: 10,
@@ -51,6 +63,7 @@ export default function BottomNav({ page, setPage, language }) {
         const active = page === id
         return (
           <button key={id} style={styles.tab(active)} onClick={() => setPage(id)}>
+            <span style={styles.indicator(active)} />
             <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
             <span style={styles.label(active)}>{t(tKey)}</span>
           </button>

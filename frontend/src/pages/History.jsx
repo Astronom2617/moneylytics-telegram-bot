@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Trash2, Plus, X, Pencil } from 'lucide-react'
 import { getExpenses, deleteExpense, updateExpense } from '../api.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
-import { useTranslation, translateCategory } from '../i18n.js'
+import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 
 const PERIOD_IDS = ['today', 'week', 'month', 'all']
 
@@ -41,15 +41,15 @@ function formatDate(isoDate, t) {
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-function formatTime(isoStr) {
-  return new Date(isoStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+function formatTime(isoStr, locale) {
+  return new Date(isoStr).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 }
 
-function formatDateTime(isoStr) {
+function formatDateTime(isoStr, locale) {
   const d = new Date(isoStr)
-  return d.toLocaleDateString('en-GB', {
+  return d.toLocaleDateString(locale, {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-  }) + ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  }) + ' · ' + d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 }
 
 function getCategoryEmoji(cat) {
@@ -65,6 +65,7 @@ function getCategoryEmoji(cat) {
 
 function ExpenseDetailModal({ expense, language, onClose, onDelete, onEdit, deleting }) {
   const t = useTranslation(language)
+  const locale = localeFor(language)
   const catKey = expense.category.charAt(0).toUpperCase() + expense.category.slice(1).toLowerCase()
 
   return (
@@ -100,7 +101,7 @@ function ExpenseDetailModal({ expense, language, onClose, onDelete, onEdit, dele
         <div className="card" style={{ padding: '14px 16px', marginBottom: 12 }}>
           <div className="detail-row">
             <span className="detail-label">{t('history.dateTime')}</span>
-            <span className="detail-value">{formatDateTime(expense.created_at)}</span>
+            <span className="detail-value">{formatDateTime(expense.created_at, locale)}</span>
           </div>
           {expense.description && (
             <>
@@ -233,8 +234,8 @@ export default function History({ user }) {
   const [selected,    setSelected]    = useState(null)
   const [editing,     setEditing]     = useState(null)
 
-  const cur = user?.currency ?? 'EUR'
   const lang = user?.language ?? 'en'
+  const locale = localeFor(lang)
   const t = useTranslation(lang)
 
   const load = useCallback(() => {
@@ -267,7 +268,14 @@ export default function History({ user }) {
     setSelected(null)
   }
 
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const totalsByCurrency = expenses.reduce((acc, e) => {
+    const c = e.currency || 'EUR'
+    acc[c] = (acc[c] || 0) + e.amount
+    return acc
+  }, {})
+  const totalsStr = Object.entries(totalsByCurrency)
+    .map(([c, v]) => `${c} ${v.toFixed(2)}`)
+    .join(' · ')
 
   return (
     <div className="page">
@@ -275,7 +283,7 @@ export default function History({ user }) {
         <h1 className="page-title">{t('page.history')}</h1>
         {!loading && expenses.length > 0 && (
           <p className="page-subtitle">
-            {expenses.length} {t('history.transactions')} · {cur} {total.toFixed(2)}
+            {expenses.length} {t('history.transactions')} · {totalsStr}
           </p>
         )}
       </div>
@@ -357,7 +365,7 @@ export default function History({ user }) {
                         </p>
                       )}
                       <p style={{ fontSize: 12, color: 'var(--tg-theme-hint-color)', marginTop: 1 }}>
-                        {formatTime(e.created_at)}
+                        {formatTime(e.created_at, locale)}
                       </p>
                     </div>
 
