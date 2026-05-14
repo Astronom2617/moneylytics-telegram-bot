@@ -4,7 +4,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    // В режиме разработки проксируем /api на локальный FastAPI
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
@@ -13,7 +12,13 @@ export default defineConfig({
     },
   },
   build: {
-    // Собранные файлы FastAPI будет раздавать как статику
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name]-[hash]-v2.js',
+        chunkFileNames: 'assets/[name]-[hash]-v2.js',
+        assetFileNames: 'assets/[name]-[hash]-v2.[ext]',
+      }
+    }
   },
 })
