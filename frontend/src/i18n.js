@@ -35,6 +35,10 @@ const dict = {
     'dashboard.transaction':      'transaction',
     'dashboard.thisWeekLower':    'this week',
     'dashboard.motivateNoToday':  "Nothing spent today — great start! 🌱",
+    'dashboard.spent':            'Spent',
+    'dashboard.lastTx':           'Last transaction',
+    'dashboard.add':              'Add',
+    'dashboard.noTx':             'No transactions yet',
 
     // History
     'history.transactions':       'transactions',
@@ -127,6 +131,10 @@ const dict = {
     'dashboard.transaction':      'операция',
     'dashboard.thisWeekLower':    'за неделю',
     'dashboard.motivateNoToday':  'Сегодня ноль трат — отличное начало! 🌱',
+    'dashboard.spent':            'Потрачено',
+    'dashboard.lastTx':           'Последняя операция',
+    'dashboard.add':              'Добавить',
+    'dashboard.noTx':             'Операций пока нет',
 
     'history.transactions':       'операций',
     'history.noExpenses':         'Нет расходов',
@@ -214,6 +222,10 @@ const dict = {
     'dashboard.transaction':      'операція',
     'dashboard.thisWeekLower':    'за тиждень',
     'dashboard.motivateNoToday':  'Сьогодні нуль витрат — чудовий початок! 🌱',
+    'dashboard.spent':            'Витрачено',
+    'dashboard.lastTx':           'Остання операція',
+    'dashboard.add':              'Додати',
+    'dashboard.noTx':             'Операцій поки немає',
 
     'history.transactions':       'операцій',
     'history.noExpenses':         'Немає витрат',
@@ -274,6 +286,14 @@ const dict = {
 export function useTranslation(language) {
   const lang = dict[language] ? language : 'en'
   return (key) => dict[lang][key] ?? dict.en[key] ?? key
+}
+
+export function localeFor(language) {
+  switch (language) {
+    case 'ru': return 'ru-RU'
+    case 'uk': return 'uk-UA'
+    default:   return 'en-GB'
+  }
 }
 
 export function translateCategory(category, language) {
