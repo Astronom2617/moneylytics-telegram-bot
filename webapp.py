@@ -140,6 +140,30 @@ def create_expense(body: dict, user_id: int = Depends(get_current_user_id), db: 
     return _expense_dict(expense)
 
 
+@app.put("/api/expenses/{expense_id}")
+def update_expense(
+    expense_id: int,
+    body: dict,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    expense = db.query(Expense).filter(and_(Expense.id == expense_id, Expense.user_id == user_id)).first()
+    if not expense:
+        raise HTTPException(status_code=404)
+    if "amount" in body:
+        amt = float(body["amount"])
+        if amt <= 0:
+            raise HTTPException(status_code=400, detail="amount must be positive")
+        expense.amount = amt
+    if "category" in body and body["category"]:
+        expense.category = str(body["category"]).lower()
+    if "description" in body:
+        expense.description = body["description"] or None
+    db.commit()
+    db.refresh(expense)
+    return _expense_dict(expense)
+
+
 @app.delete("/api/expenses/{expense_id}")
 def delete_expense(expense_id: int, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
     expense = db.query(Expense).filter(and_(Expense.id == expense_id, Expense.user_id == user_id)).first()
@@ -163,6 +187,11 @@ def get_stats(period: str = "week", user_id: int = Depends(get_current_user_id),
         ).scalar()
         return round(r or 0.0, 2)
 
+    def count_since(dt):
+        return db.query(func.count(Expense.id)).filter(
+            and_(Expense.user_id == user_id, Expense.created_at >= dt)
+        ).scalar() or 0
+
     since = _period_start(period) or month_start
     by_category = db.query(
         Expense.category, func.sum(Expense.amount).label("total")
@@ -182,6 +211,9 @@ def get_stats(period: str = "week", user_id: int = Depends(get_current_user_id),
         "today": total_since(today_start),
         "week":  total_since(week_start),
         "month": total_since(month_start),
+        "count_today": count_since(today_start),
+        "count_week":  count_since(week_start),
+        "count_month": count_since(month_start),
         "by_category":  [{"category": row.category, "total": round(row.total, 2)} for row in by_category],
         "daily_last_7": daily,
     }

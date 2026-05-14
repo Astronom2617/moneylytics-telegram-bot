@@ -2,9 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus } from 'lucide-react'
 import { getStats } from '../api.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
-
-// Форматируем категорию: food → Food
-const formatCategory = (cat) => cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
+import { useTranslation, translateCategory } from '../i18n.js'
 
 const CATEGORY_COLORS = {
   Food: '#F59E0B',
@@ -20,8 +18,7 @@ const CATEGORY_COLORS = {
   Other: '#94A3B8',
 }
 
-// Полоса бюджета: зелёная → жёлтая → красная в зависимости от %
-function BudgetBar({ spent, budget, currency }) {
+function BudgetBar({ spent, budget, currency, t }) {
   if (!budget) return null
 
   const pct = Math.min((spent / budget) * 100, 100)
@@ -35,8 +32,8 @@ function BudgetBar({ spent, budget, currency }) {
       </div>
       <p style={{ fontSize: 12, color: 'var(--tg-theme-hint-color)', marginTop: 4 }}>
         {remaining > 0
-          ? <>{currency} {remaining.toFixed(2)} left</>
-          : <span style={{ color: 'var(--danger)' }}>Over budget by {currency} {Math.abs(remaining).toFixed(2)}</span>
+          ? <>{currency} {remaining.toFixed(2)} {t('dashboard.left')}</>
+          : <span style={{ color: 'var(--danger)' }}>{t('dashboard.overBudgetBy')} {currency} {Math.abs(remaining).toFixed(2)}</span>
         }
       </p>
     </div>
@@ -49,6 +46,8 @@ export default function Dashboard({ user }) {
   const [showModal,   setShowModal]   = useState(false)
 
   const cur = user?.currency ?? 'EUR'
+  const lang = user?.language ?? 'en'
+  const t = useTranslation(lang)
 
   const loadStats = useCallback(() => {
     setLoading(true)
@@ -60,19 +59,20 @@ export default function Dashboard({ user }) {
 
   useEffect(() => { loadStats() }, [loadStats])
 
-  // После добавления расхода перезагружаем статистику
   const handleExpenseAdded = () => loadStats()
 
   const greeting = () => {
     const h = new Date().getHours()
-    if (h < 12) return 'Good morning'
-    if (h < 18) return 'Good afternoon'
-    return 'Good evening'
+    if (h < 12) return t('greeting.morning')
+    if (h < 18) return t('greeting.afternoon')
+    return t('greeting.evening')
   }
+
+  const weekCount = stats?.count_week ?? 0
+  const txWord = weekCount === 1 ? t('dashboard.transaction') : t('dashboard.transactions')
 
   return (
     <div className="page">
-      {/* Приветствие */}
       <div className="page-header">
         <p style={{ fontSize: 14, color: 'var(--tg-theme-hint-color)' }}>{greeting()}</p>
         <h1 style={{ fontSize: 26, fontWeight: 600 }}>{user?.first_name ?? 'there'} 👋</h1>
@@ -88,40 +88,72 @@ export default function Dashboard({ user }) {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <p style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)', fontWeight: 500 }}>TODAY</p>
+                <p style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)', fontWeight: 500 }}>{t('dashboard.today')}</p>
                 <p className="amount" style={{ fontSize: 32, fontWeight: 500, marginTop: 2 }}>
                   {cur} {stats.today.toFixed(2)}
                 </p>
+                {stats.today === 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--success)', marginTop: 6 }}>
+                    {t('dashboard.motivateNoToday')}
+                  </p>
+                )}
               </div>
               {user?.daily_budget && (
                 <p style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)' }}>
-                  of {cur} {user.daily_budget}
+                  {t('dashboard.of')} {cur} {user.daily_budget}
                 </p>
               )}
             </div>
-            <BudgetBar spent={stats.today} budget={user?.daily_budget} currency={cur} />
+            <BudgetBar spent={stats.today} budget={user?.daily_budget} currency={cur} t={t} />
           </div>
 
           {/* Неделя */}
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <p style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)', fontWeight: 500 }}>THIS WEEK</p>
+                <p style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)', fontWeight: 500 }}>{t('dashboard.thisWeek')}</p>
                 <p className="amount" style={{ fontSize: 32, fontWeight: 500, marginTop: 2 }}>
                   {cur} {stats.week.toFixed(2)}
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--tg-theme-hint-color)', marginTop: 6 }}>
+                  {weekCount} {txWord}
                 </p>
               </div>
               {user?.weekly_budget && (
                 <p style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)' }}>
-                  of {cur} {user.weekly_budget}
+                  {t('dashboard.of')} {cur} {user.weekly_budget}
                 </p>
               )}
             </div>
-            <BudgetBar spent={stats.week} budget={user?.weekly_budget} currency={cur} />
+            <BudgetBar spent={stats.week} budget={user?.weekly_budget} currency={cur} t={t} />
           </div>
 
+          {/* Месяц */}
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)', fontWeight: 500 }}>{t('dashboard.thisMonth')}</p>
+                <p className="amount" style={{ fontSize: 28, fontWeight: 500, marginTop: 2 }}>
+                  {cur} {stats.month.toFixed(2)}
+                </p>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--tg-theme-hint-color)' }}>
+                {stats.count_month ?? 0} {stats.count_month === 1 ? t('dashboard.transaction') : t('dashboard.transactions')}
+              </p>
+            </div>
+          </div>
+
+          <p style={{
+            fontSize: 11,
+            color: 'var(--tg-theme-hint-color)',
+            fontStyle: 'italic',
+            margin: '-4px 4px 12px',
+          }}>
+            ℹ️ {t('analytics.totalsNote')}
+          </p>
+
           {/* Топ категории */}
-          {stats.by_category.length > 0 && (
+          {stats.by_category.length > 0 ? (
             <>
               <p style={{
                 fontSize: 13, fontWeight: 500,
@@ -130,18 +162,18 @@ export default function Dashboard({ user }) {
                 letterSpacing: '0.5px',
                 marginBottom: 10,
               }}>
-                Top categories this week
+                {t('dashboard.topCategories')}
               </p>
                <div className="card" style={{ padding: '8px 0' }}>
                  {stats.by_category.slice(0, 5).map((item, i) => {
-                   const displayCategory = formatCategory(item.category)
-                   const color = CATEGORY_COLORS[displayCategory] ?? '#94A3B8'
+                   const cap = item.category.charAt(0).toUpperCase() + item.category.slice(1).toLowerCase()
+                   const color = CATEGORY_COLORS[cap] ?? '#94A3B8'
                    const maxTotal = stats.by_category[0].total
                    const pct = (item.total / maxTotal) * 100
                    return (
                      <div key={i} style={{ padding: '10px 16px' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                         <span style={{ fontSize: 14 }}>{displayCategory}</span>
+                         <span style={{ fontSize: 14 }}>{translateCategory(item.category, lang)}</span>
                          <span className="amount" style={{ fontSize: 14, color }}>
                            {cur} {item.total.toFixed(2)}
                          </span>
@@ -154,11 +186,22 @@ export default function Dashboard({ user }) {
                  })}
                </div>
             </>
+          ) : stats.today === 0 && stats.week === 0 && (
+            <div className="empty">
+              <div className="empty-icon">📭</div>
+              <p>{t('history.noExpenses')} {t('history.yet')}</p>
+              <button
+                className="btn-accent"
+                onClick={() => setShowModal(true)}
+                style={{ marginTop: 16, width: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 24px' }}
+              >
+                <Plus size={18} /> {t('common.addExpense')}
+              </button>
+            </div>
           )}
         </>
       )}
 
-      {/* FAB — кнопка добавления */}
       <button className="fab" onClick={() => setShowModal(true)}>
         <Plus size={24} />
       </button>
