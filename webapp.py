@@ -219,7 +219,7 @@ def get_stats(period: str = "week", user_id: int = Depends(get_current_user_id),
         r = db.query(func.sum(Expense.amount)).filter(
             and_(Expense.user_id == user_id, Expense.created_at >= day_start, Expense.created_at < day_end)
         ).scalar()
-        daily.append({"date": day_start.strftime("%a"), "total": round(r or 0.0, 2)})
+        daily.append({"date": day_start.strftime("%Y-%m-%d"), "total": round(r or 0.0, 2)})
 
     return {
         "today": totals_by_currency_since(today_start),

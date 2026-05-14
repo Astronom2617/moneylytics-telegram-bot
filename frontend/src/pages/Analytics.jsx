@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
 import { getStats } from '../api.js'
-import { useTranslation, translateCategory } from '../i18n.js'
+import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 
 const PERIOD_IDS = ['today', 'week', 'month']
 
@@ -18,7 +18,7 @@ const COLORS = [
 // Кастомный tooltip для Recharts — стилизован под TMA
 const CustomTooltip = ({ active, payload, currency, language, translateName }) => {
   if (!active || !payload?.length) return null
-  const rawName = payload[0].name || payload[0].payload?.date
+  const rawName = payload[0].payload?.label || payload[0].name || payload[0].payload?.date
   const name = translateName ? translateName(rawName) : rawName
   return (
     <div style={{
@@ -42,7 +42,16 @@ export default function Analytics({ user }) {
 
   const cur = user?.currency ?? 'EUR'
   const lang = user?.language ?? 'en'
+  const locale = localeFor(lang)
   const t = useTranslation(lang)
+
+  const formatDay = (isoDate) => {
+    try {
+      return new Date(isoDate + 'T00:00:00').toLocaleDateString(locale, { weekday: 'short' })
+    } catch { return isoDate }
+  }
+
+  const dailyData = (stats?.daily_last_7 || []).map((d) => ({ ...d, label: formatDay(d.date) }))
 
   const load = useCallback(() => {
     setLoading(true)
@@ -180,10 +189,10 @@ export default function Analytics({ user }) {
           </p>
           <div className="card">
             <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={stats.daily_last_7} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <BarChart data={dailyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--tg-theme-bg-color)" />
                 <XAxis
-                  dataKey="date"
+                  dataKey="label"
                   tick={{ fontSize: 11, fill: 'var(--tg-theme-hint-color)', fontFamily: 'var(--font-body)' }}
                   axisLine={false}
                   tickLine={false}
