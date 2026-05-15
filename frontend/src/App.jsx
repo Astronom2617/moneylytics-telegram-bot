@@ -15,7 +15,6 @@ export default function App() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    // Инициализируем TMA: говорим Telegram что апп готов, раскрываем на весь экран
     if (tg) {
       tg.ready()
       tg.expand()
@@ -25,12 +24,12 @@ export default function App() {
 
     authUser(initData)
       .then(({ token, user }) => {
-        setToken(token)   // сохраняем JWT для всех последующих запросов
+        setToken(token)
         setUser(user)
         setLoading(false)
       })
       .catch((err) => {
-        // В dev-режиме (локально без Telegram) показываем заглушку
+        // Fall back to a mock user when running locally outside Telegram
         if (import.meta.env.DEV) {
           console.warn('Auth failed in dev mode, using mock user:', err.message)
           setToken('dev-token')
@@ -44,7 +43,7 @@ export default function App() {
           })
           setLoading(false)
         } else {
-          setError('Не удалось авторизоваться. Попробуй открыть снова.')
+          setError('Could not authorize. Try opening the app again.')
           setLoading(false)
         }
       })

@@ -4,12 +4,6 @@ SUPPORTED_LANGUAGES = ("en", "ru", "uk")
 DEFAULT_LANGUAGE = "en"
 CANONICAL_CATEGORIES = ("food", "transport", "housing", "entertainment", "other")
 
-LANGUAGE_NAMES = {
-    "en": "English",
-    "ru": "Русский",
-    "uk": "Українська",
-}
-
 TRANSLATIONS = {
     "en": {
         "menu.today": "📊 Today",
@@ -608,15 +602,3 @@ def t_category(language: str | None, category: str) -> str:
     key = f"category.{safe_category}"
     translated = t(language, key)
     return translated if translated != key else safe_category.capitalize()
-
-
-def normalize_category(category: str | None) -> str | None:
-    if not category:
-        return None
-    normalized = category.strip().lower()
-    return normalized if normalized else None
-
-
-def is_canonical_category(category: str | None) -> bool:
-    normalized = normalize_category(category)
-    return normalized in CANONICAL_CATEGORIES

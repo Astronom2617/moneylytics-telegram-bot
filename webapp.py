@@ -1,7 +1,4 @@
-"""
-Moneylytics — Telegram Mini App Backend
-Переиспользует существующий databases/db.py (sync SQLAlchemy).
-"""
+"""Moneylytics — Telegram Mini App backend. Shares the bot's sync SQLAlchemy layer."""
 
 import os
 import hmac
@@ -128,10 +125,9 @@ def create_expense(body: dict, user_id: int = Depends(get_current_user_id), db: 
     user = db.query(User).filter(User.id == user_id).first()
     currency = body.get("currency") or (user.currency if user else "EUR")
 
-    # Время создания: предпочитаем готовую локальную ISO-строку от клиента
-    # (client_now = "YYYY-MM-DDTHH:MM:SS" в его локальной зоне), иначе
-    # корректируем utcnow() по timezone_offset (минуты, как у JS
-    # getTimezoneOffset — для UTC+1 это -60).
+    # Store the client's local wall-clock time. Prefer the ready-made local
+    # ISO string; otherwise shift utcnow() by timezone_offset, which uses JS
+    # getTimezoneOffset() sign convention (UTC+1 is -60).
     created_at = datetime.utcnow()
     client_now = body.get("client_now")
     if client_now:
