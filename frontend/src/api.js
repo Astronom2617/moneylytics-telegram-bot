@@ -1,8 +1,5 @@
-/**
- * Все запросы к FastAPI бэкенду — через этот модуль.
- * Токен хранится в памяти (не localStorage — TMA чистит стейт при закрытии).
- */
-
+// Token is held in memory rather than localStorage — Telegram Mini Apps
+// wipe storage when the app is closed, so persisting it buys nothing.
 let _token = null
 
 export const setToken = (t) => { _token = t }
@@ -24,18 +21,14 @@ const request = async (method, path, body = undefined) => {
   return res.json()
 }
 
-// Auth
 export const authUser  = (initData) => request('POST', '/api/auth', { initData })
 
-// Расходы
 export const getExpenses    = (period = 'week')    => request('GET', `/api/expenses?period=${period}`)
 export const createExpense  = (data)               => request('POST', '/api/expenses', data)
 export const updateExpense  = (id, data)           => request('PUT', `/api/expenses/${id}`, data)
 export const deleteExpense  = (id)                 => request('DELETE', `/api/expenses/${id}`)
 
-// Статистика
 export const getStats = (period = 'week') => request('GET', `/api/stats?period=${period}`)
 
-// Пользователь
 export const getUser    = ()     => request('GET', '/api/user')
 export const updateUser = (data) => request('PUT', '/api/user', data)

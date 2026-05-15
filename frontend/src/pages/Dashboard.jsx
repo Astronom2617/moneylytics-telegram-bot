@@ -219,7 +219,6 @@ export default function Dashboard({ user }) {
         </div>
       ) : (
         <>
-          {/* Три компактные карточки в строку */}
           <div className="stat-row">
             <div className="stat-card">
               <p className="stat-label">{t('dashboard.today')}</p>
@@ -244,7 +243,6 @@ export default function Dashboard({ user }) {
             </div>
           </div>
 
-          {/* Прогресс-бары бюджетов */}
           {(user?.daily_budget || user?.weekly_budget) && (
             <div className="card">
               {user?.daily_budget && (
@@ -272,14 +270,12 @@ export default function Dashboard({ user }) {
             </div>
           )}
 
-          {/* Мотивационная подсказка если сегодня 0 */}
           {Object.keys(stats.today || {}).length === 0 && (
             <p style={{ fontSize: 13, color: 'var(--success)', textAlign: 'center', margin: '4px 0 12px' }}>
               {t('dashboard.motivateNoToday')}
             </p>
           )}
 
-          {/* Sparkline — последние 7 дней */}
           {dailyData.some((d) => d.total > 0) && (
             <div className="card" style={{ padding: '10px 8px 4px' }}>
               <ResponsiveContainer width="100%" height={80}>
@@ -291,7 +287,6 @@ export default function Dashboard({ user }) {
             </div>
           )}
 
-          {/* Disclaimer о валюте */}
           <p style={{
             fontSize: 11,
             color: 'var(--tg-theme-hint-color)',
@@ -301,7 +296,6 @@ export default function Dashboard({ user }) {
             ℹ️ {t('analytics.totalsNote')}
           </p>
 
-          {/* Последняя транзакция */}
           {lastTx && (
             <>
               <p style={{
@@ -344,7 +338,6 @@ export default function Dashboard({ user }) {
             </>
           )}
 
-          {/* Топ категории */}
           {stats.by_category.length > 0 ? (
             <>
               <p style={{
