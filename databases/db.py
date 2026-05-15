@@ -5,6 +5,7 @@ from databases.models import Base
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./moneylytics_bot.db")
 
+# Heroku hands out postgres:// URLs but SQLAlchemy needs the postgresql:// scheme
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -13,12 +14,8 @@ engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
 def _normalize_legacy_categories(conn):
-    """
-    Normalize legacy non-canonical category values in existing Expense records
-    to canonical values: food, transport, housing, entertainment, other.
-    Mapping is idempotent and can be run safely multiple times.
-    """
-    # Legacy -> Canonical category mappings
+    # Collapses old free-form/localized categories into the five canonical ones.
+    # Idempotent — safe to run on every startup.
     legacy_mappings = {
         'еда': 'food',
         'пища': 'food',

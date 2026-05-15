@@ -1,10 +1,9 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from utils.translations import CANONICAL_CATEGORIES, LANGUAGE_NAMES, t, t_category
+from utils.translations import CANONICAL_CATEGORIES, t, t_category
 
 
-# Main Menu
 def get_main_menu(lang: str = "en") -> ReplyKeyboardMarkup:
     main_menu = ReplyKeyboardMarkup(
         keyboard=[
@@ -20,7 +19,6 @@ def get_main_menu(lang: str = "en") -> ReplyKeyboardMarkup:
     return main_menu
 
 
-# Settings Buttons
 def get_settings_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     settings_menu = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -34,10 +32,7 @@ def get_settings_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
 
 
 def get_language_keyboard(current_lang: str | None = None) -> InlineKeyboardMarkup:
-    """Inline keyboard for selecting a preferred language.
-    current_lang=None means onboarding — no checkmarks shown.
-    Buttons show: "English 🇺🇸", "Русский 🇷🇺", "Українська 🇺🇦"
-    """
+    # current_lang=None during onboarding, which hides the selected-language checkmark
     keyboard = [
         [
             InlineKeyboardButton(
@@ -61,7 +56,6 @@ def get_language_keyboard(current_lang: str | None = None) -> InlineKeyboardMark
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
-# Budget Buttons
 def get_budget_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     budget_menu = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -81,7 +75,6 @@ def get_budget_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     return budget_menu
 
 
-# Currency Buttons
 def get_currency_keyboard() -> InlineKeyboardMarkup:
     currency_menu = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -101,7 +94,6 @@ def get_currency_keyboard() -> InlineKeyboardMarkup:
 EXPENSE_CATEGORIES = list(CANONICAL_CATEGORIES)
 
 
-# Expense Management Keyboards
 def get_expenses_list_keyboard(expenses: list, lang: str = "en") -> InlineKeyboardMarkup:
     keyboard = []
     for expense in expenses:

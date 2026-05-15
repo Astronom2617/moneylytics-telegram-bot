@@ -33,7 +33,6 @@ def get_budget_periods() -> tuple[datetime, datetime, datetime, datetime]:
     return today_start, today_end, week_start, week_end
 
 
-# Callback for choosing setting
 @router.callback_query(F.data.startswith("set:"))
 async def process_settings_selection(callback: CallbackQuery):
     settings = callback.data.split(":")[1]
@@ -76,7 +75,6 @@ async def process_currency_selection(callback: CallbackQuery):
     await callback.answer()
 
 
-# Setting Budget
 async def set_budget(message: Message, state: FSMContext, field: str, label: str):
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()

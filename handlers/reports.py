@@ -20,18 +20,7 @@ def get_currency_symbol(currency: str | None) -> str:
     code = currency or "EUR"
     return CURRENCY_SYMBOLS.get(code, code)
 
-# Get expenses by period
 def get_expenses_by_period(user_id: int, start_date: datetime, end_date: datetime) -> list:
-    """Get all user expenses within a date range.
-
-    Args:
-        user_id: Telegram user ID.
-        start_date: Start of the period (inclusive).
-        end_date: End of the period (inclusive).
-
-    Returns:
-        List of Expense objects for the given period.
-    """
     with get_session() as session:
         expenses = session.query(Expense).filter(
             Expense.user_id == user_id,
@@ -40,21 +29,7 @@ def get_expenses_by_period(user_id: int, start_date: datetime, end_date: datetim
         ).all()
         return expenses
 
-# Build expense report
 def build_expense_report(expenses: list, title: str, largest_expense_title: str, lang: str) -> str:
-    """Build formatted HTML expense report grouped by category.
-
-    Groups expenses by category, calculates totals per category
-    and overall, and highlights the largest expense.
-
-    Args:
-        expenses: List of Expense objects to include in the report.
-        title: Report header, e.g. "📊 Today's report (20 Feb)".
-        largest_expense_title: Label for largest expense, e.g. "Largest expense today".
-
-    Returns:
-        Formatted HTML string ready to send via Telegram.
-    """
     report = html.bold(f"{title}:\n")
     expenses_by_currency = defaultdict(list)
     for expense in expenses:
@@ -108,15 +83,9 @@ def build_expense_report(expenses: list, title: str, largest_expense_title: str,
         )
     return report
 
-# /today
 @router.message(Command("today"))
 @router.message(F.text.in_(text_options("menu.today")))
 async def daily_report(message: Message):
-    """Handle the /today command or Today button, sending a report of today's expenses.
-
-    Args:
-        message: The incoming Telegram message.
-    """
     today_start = datetime.combine(datetime.now(), time.min)
     today_end = datetime.combine(datetime.now(), time.max)
 
@@ -141,16 +110,9 @@ async def daily_report(message: Message):
     await message.answer(report)
 
 
-# /week
 @router.message(Command("week"))
 @router.message(F.text.in_(text_options("menu.week")))
 async def weekly_report(message: Message):
-    """Handle the /week command or Week button, sending a report of the past week's expenses.
-
-    Args:
-        message: The incoming Telegram message.
-    """
-
     today_start = datetime.combine(datetime.now(), time.min)
     week_start = today_start - timedelta(days=datetime.now().weekday())
     week_end = datetime.combine(datetime.now(), time.max)
@@ -174,15 +136,9 @@ async def weekly_report(message: Message):
     )
     await message.answer(report)
 
-# /categories
 @router.message(Command("categories"))
 @router.message(F.text.in_(text_options("menu.categories")))
 async def button_categories(message: Message):
-    """Handle the /categories command or Categories button, sending a pie chart of monthly expenses.
-
-    Args:
-        message: The incoming Telegram message.
-    """
     month_start = datetime.combine(datetime.now().replace(day=1), time.min)
     month_end = datetime.now()
     start_str = month_start.strftime("%d.%m")

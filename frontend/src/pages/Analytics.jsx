@@ -8,14 +8,13 @@ import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 
 const PERIOD_IDS = ['today', 'week', 'month']
 
-// Цвета для категорий — достаточно контрастны на светлом и тёмном фоне
+// Picked to stay readable on both light and dark Telegram themes
 const COLORS = [
   '#F59E0B', '#3B82F6', '#EC4899', '#22C55E',
   '#8B5CF6', '#F97316', '#06B6D4', '#EF4444',
   '#14B8A6', '#6366F1', '#94A3B8',
 ]
 
-// Кастомный tooltip для Recharts — стилизован под TMA
 const CustomTooltip = ({ active, payload, currency, language, translateName }) => {
   if (!active || !payload?.length) return null
   const rawName = payload[0].payload?.label || payload[0].name || payload[0].payload?.date
@@ -92,7 +91,6 @@ export default function Analytics({ user }) {
         </div>
       ) : (
         <>
-          {/* Суммарная карточка */}
           <div className="card" style={{ display: 'flex', gap: 12 }}>
             {[
               { label: t('period.today'),  value: stats.today },
@@ -128,7 +126,6 @@ export default function Analytics({ user }) {
             ℹ️ {t('analytics.totalsNote')}
           </p>
 
-          {/* Pie chart — по категориям */}
           <p style={{
             fontSize: 13, fontWeight: 600,
             color: 'var(--tg-theme-hint-color)',
@@ -159,7 +156,6 @@ export default function Analytics({ user }) {
               </PieChart>
             </ResponsiveContainer>
 
-            {/* Легенда */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
               {stats.by_category.map((item, i) => {
                 const total = stats.by_category.reduce((s, x) => s + x.total, 0)
@@ -176,7 +172,6 @@ export default function Analytics({ user }) {
             </div>
           </div>
 
-          {/* Bar chart — последние 7 дней */}
           <p style={{
             fontSize: 13, fontWeight: 600,
             color: 'var(--tg-theme-hint-color)',

@@ -85,7 +85,6 @@ html, body, #root {
   margin-top: 2px;
 }
 
-/* Карточка */
 .card {
   background: var(--tg-theme-secondary-bg-color);
   border-radius: var(--radius-lg);
@@ -100,7 +99,6 @@ html, body, #root {
   border-radius: 16px;
 }
 
-/* Кнопка основная */
 .btn-primary {
   background: var(--tg-theme-button-color);
   color: var(--tg-theme-button-text-color);
@@ -117,7 +115,6 @@ html, body, #root {
 .btn-primary:active { opacity: 0.85; transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Кнопка акцентная — фиолетовый градиент */
 .btn-accent {
   background: var(--accent-gradient);
   color: #ffffff;
@@ -135,7 +132,6 @@ html, body, #root {
 .btn-accent:active { transform: scale(0.98); box-shadow: 0 3px 10px rgba(108, 99, 255, 0.30); }
 .btn-accent:disabled { opacity: 0.6; }
 
-/* FAB — кнопка добавления */
 .fab {
   position: fixed;
   bottom: calc(76px + var(--safe-bottom));
@@ -160,7 +156,6 @@ html, body, #root {
   box-shadow: 0 2px 8px rgba(108, 99, 255, 0.30);
 }
 
-/* Extended FAB — pill с текстом */
 .fab-extended {
   position: fixed;
   bottom: calc(76px + var(--safe-bottom));
@@ -187,13 +182,11 @@ html, body, #root {
   box-shadow: 0 3px 10px rgba(108, 99, 255, 0.30);
 }
 
-/* Числа */
 .amount {
   font-family: var(--font-mono);
   font-weight: 500;
 }
 
-/* Полоса бюджета — 8px скруглённая */
 .progress-bar {
   height: 8px;
   border-radius: 8px;
@@ -207,7 +200,6 @@ html, body, #root {
   transition: width 0.5s ease;
 }
 
-/* Пустое состояние */
 .empty {
   text-align: center;
   color: var(--tg-theme-hint-color);
@@ -219,7 +211,6 @@ html, body, #root {
   margin-bottom: 12px;
 }
 
-/* Состояние загрузки */
 .loading {
   display: flex;
   align-items: center;
@@ -236,7 +227,6 @@ html, body, #root {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Chip-выбор */
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -262,7 +252,6 @@ html, body, #root {
   font-weight: 600;
 }
 
-/* Инпут */
 .input {
   width: 100%;
   padding: 12px 14px;
@@ -281,7 +270,6 @@ html, body, #root {
 }
 .input::placeholder { color: var(--tg-theme-hint-color); }
 
-/* Лейбл формы */
 .form-label {
   font-size: 13px;
   font-weight: 500;

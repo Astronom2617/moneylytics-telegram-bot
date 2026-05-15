@@ -47,13 +47,11 @@ CURRENCY_SYMBOL_TO_CODE = {
 }
 
 STRICT_CATEGORY_MAP = {
-    # English canonical
     "food": "food",
     "transport": "transport",
     "housing": "housing",
     "entertainment": "entertainment",
     "other": "other",
-    # Russian
     "еда": "food",
     "пища": "food",
     "транспорт": "transport",
@@ -61,7 +59,6 @@ STRICT_CATEGORY_MAP = {
     "жильё": "housing",
     "развлечения": "entertainment",
     "другое": "other",
-    # Ukrainian
     "їжа": "food",
     "житло": "housing",
     "розваги": "entertainment",

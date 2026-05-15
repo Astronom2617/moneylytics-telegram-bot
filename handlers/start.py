@@ -12,14 +12,8 @@ from utils.translations import detect_language, get_user_language, text_options,
 router = Router()
 
 
-# Start
 @router.message(CommandStart())
 async def command_start_handler(message: Message, state: FSMContext) -> None:
-    """
-    /start command handler
-    - If user exists: show welcome back message
-    - If new user: start FSM-based onboarding (language selection only)
-    """
     await state.clear()
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
@@ -30,11 +24,9 @@ async def command_start_handler(message: Message, state: FSMContext) -> None:
                 reply_markup=get_main_menu(lang)
             )
         else:
-            # Pass FSMContext to onboarding
             await start_onboarding(message, state)
 
 
-# Set currency
 @router.message(Command("setcurrency"))
 async def command_set_currency_handler(message: Message):
     parts = message.text.split()
@@ -66,7 +58,6 @@ async def command_set_currency_handler(message: Message):
             await message.answer(t(lang, "common.profile_missing"))
 
 
-# Help
 @router.message(Command("help"))
 @router.message(F.text.in_(text_options("menu.help")))
 async def command_help_handler(message: Message):
@@ -77,7 +68,6 @@ async def command_help_handler(message: Message):
     await message.answer(t(lang, "help.text"))
 
 
-# Mini App
 @router.message(Command("app"))
 async def command_app_handler(message: Message):
     with get_session() as session:
@@ -93,7 +83,6 @@ async def command_app_handler(message: Message):
     await message.answer(t(lang, "app.open", default="Tap the button to open Moneylytics:"), reply_markup=kb)
 
 
-# Settings
 @router.message(Command("settings"))
 @router.message(F.text.in_(text_options("menu.settings")))
 async def button_settings(message: Message):
