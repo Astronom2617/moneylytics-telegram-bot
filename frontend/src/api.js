@@ -28,7 +28,24 @@ export const createExpense  = (data)               => request('POST', '/api/expe
 export const updateExpense  = (id, data)           => request('PUT', `/api/expenses/${id}`, data)
 export const deleteExpense  = (id)                 => request('DELETE', `/api/expenses/${id}`)
 
-export const getStats = (period = 'week') => request('GET', `/api/stats?period=${period}`)
+export const getStats        = (period = 'week') => request('GET', `/api/stats?period=${period}`)
+export const getAlltimeStats = ()                => request('GET', '/api/stats/alltime')
+
+export const exportCSV = async () => {
+  const headers = {}
+  if (_token) headers['Authorization'] = `Bearer ${_token}`
+  const res = await fetch('/api/expenses/export', { headers })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const blob = await res.blob()
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = 'moneylytics_export.csv'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 
 export const getUser    = ()     => request('GET', '/api/user')
 export const updateUser = (data) => request('PUT', '/api/user', data)

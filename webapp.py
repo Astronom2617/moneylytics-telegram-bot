@@ -1,6 +1,8 @@
 """Moneylytics — Telegram Mini App backend. Shares the bot's sync SQLAlchemy layer."""
 
 import os
+import csv
+import io
 import hmac
 import hashlib
 import json
@@ -13,6 +15,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 
@@ -236,6 +239,46 @@ def get_stats(period: str = "week", user_id: int = Depends(get_current_user_id),
     }
 
 
+@app.get("/api/stats/alltime")
+def get_alltime_stats(user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404)
+    total_count = db.query(func.count(Expense.id)).filter(Expense.user_id == user_id).scalar() or 0
+    rows = db.query(Expense.currency, func.sum(Expense.amount)).filter(
+        Expense.user_id == user_id
+    ).group_by(Expense.currency).all()
+    total_by_currency = {(cur or "EUR"): round(float(total or 0.0), 2) for cur, total in rows}
+    return {
+        "total_count": int(total_count),
+        "total_by_currency": total_by_currency,
+        "member_since": user.created_at.isoformat() if user.created_at else None,
+    }
+
+
+@app.get("/api/expenses/export")
+def export_expenses_csv(user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    expenses = db.query(Expense).filter(Expense.user_id == user_id).order_by(Expense.created_at.desc()).all()
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["date", "time", "amount", "currency", "category", "description"])
+    for e in expenses:
+        writer.writerow([
+            e.created_at.strftime("%Y-%m-%d") if e.created_at else "",
+            e.created_at.strftime("%H:%M") if e.created_at else "",
+            f"{e.amount:.2f}",
+            e.currency or "",
+            e.category or "",
+            e.description or "",
+        ])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="moneylytics_export.csv"'},
+    )
+
+
 @app.get("/api/user")
 def get_user(user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -257,8 +300,10 @@ def update_user(body: dict, user_id: int = Depends(get_current_user_id), db: Ses
 
 
 def _user_dict(u):
-    return {"id": u.id, "first_name": u.first_name, "currency": u.currency,
-            "language": u.language, "daily_budget": u.daily_budget, "weekly_budget": u.weekly_budget}
+    return {"id": u.id, "first_name": u.first_name, "username": u.username,
+            "currency": u.currency, "language": u.language,
+            "daily_budget": u.daily_budget, "weekly_budget": u.weekly_budget,
+            "created_at": u.created_at.isoformat() if u.created_at else None}
 
 def _expense_dict(e):
     return {"id": e.id, "amount": e.amount, "category": e.category, "currency": e.currency,
