@@ -38,6 +38,8 @@ TRANSLATIONS = {
             "amount category description\n"
             "Example: 500 food pizza"
         ),
+        "start.app_hint": "You can also use the app for analytics and history → /app",
+        "app.open": "Open Moneylytics — track your expenses visually 👇",
         "help.text": (
             "📖 How to use Moneylytics Bot\n\n"
             "Adding expenses:\n"
@@ -52,6 +54,8 @@ TRANSLATIONS = {
             "- /week - Weekly expense report\n"
             "- /categories - Expense breakdown with chart\n"
             "- /budget - Manage budget limits\n"
+            "- /myexpenses - View and edit recent expenses\n"
+            "- /app - Open the mini app\n"
             "- /settings - Account settings\n"
             "- /setcurrency - Set preferred currency\n"
             "- /help - Show this message\n\n"
@@ -224,6 +228,8 @@ TRANSLATIONS = {
             "amount category description\n"
             "Пример: 500 food pizza"
         ),
+        "start.app_hint": "Также есть приложение для аналитики и истории → /app",
+        "app.open": "Открой Moneylytics — следи за расходами наглядно 👇",
         "help.text": (
             "📖 Как пользоваться Moneylytics Bot\n\n"
             "Добавление расходов:\n"
@@ -238,6 +244,8 @@ TRANSLATIONS = {
             "- /week - Отчёт за неделю\n"
             "- /categories - Расходы по категориям с графиком\n"
             "- /budget - Управление лимитами бюджета\n"
+            "- /myexpenses - Просмотр и редактирование расходов\n"
+            "- /app - Открыть мини-приложение\n"
             "- /settings - Настройки аккаунта\n"
             "- /setcurrency - Установить валюту\n"
             "- /help - Показать это сообщение\n\n"
@@ -410,6 +418,8 @@ TRANSLATIONS = {
             "amount category description\n"
             "Приклад: 500 food pizza"
         ),
+        "start.app_hint": "Також є застосунок для аналітики та історії → /app",
+        "app.open": "Відкрий Moneylytics — стеж за витратами наочно 👇",
         "help.text": (
             "📖 Як користуватися Moneylytics Bot\n\n"
             "Додавання витрат:\n"
@@ -424,6 +434,8 @@ TRANSLATIONS = {
             "- /week - Звіт за тиждень\n"
             "- /categories - Розподіл витрат з графіком\n"
             "- /budget - Керування лімітами бюджету\n"
+            "- /myexpenses - Перегляд і редагування витрат\n"
+            "- /app - Відкрити міні-застосунок\n"
             "- /settings - Налаштування акаунта\n"
             "- /setcurrency - Встановити валюту\n"
             "- /help - Показати це повідомлення\n\n"
