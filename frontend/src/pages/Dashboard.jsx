@@ -182,7 +182,7 @@ export default function Dashboard({ user }) {
           <Avatar
             photoUrl={TG_PHOTO_URL}
             name={user?.first_name}
-            size={40}
+            size={56}
             onClick={() => setShowProfile(true)}
           />
           {streak > 0 ? (
