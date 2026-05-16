@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Download, X } from 'lucide-react'
-import BottomSheet from './BottomSheet.jsx'
 import Avatar from './Avatar.jsx'
 import { getAlltimeStats, exportCSV } from '../api.js'
 import { useTranslation } from '../i18n.js'
@@ -26,6 +25,7 @@ export default function UserProfileSheet({ user, photoUrl, onClose }) {
   const [stats, setStats]         = useState(null)
   const [loading, setLoading]     = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [open, setOpen]           = useState(false)
 
   useEffect(() => {
     getAlltimeStats()
@@ -33,6 +33,16 @@ export default function UserProfileSheet({ user, photoUrl, onClose }) {
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setOpen(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
+
+  const close = () => {
+    setOpen(false)
+    setTimeout(onClose, 250)
+  }
 
   const handleExport = async () => {
     setExporting(true)
@@ -51,8 +61,37 @@ export default function UserProfileSheet({ user, photoUrl, onClose }) {
     : ''
 
   return (
-    <BottomSheet onClose={onClose}>
-      {(close) => (
+    <div
+      onClick={close}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        opacity: open ? 1 : 0,
+        transition: 'opacity 0.25s ease-out',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '85vw',
+          maxWidth: 360,
+          borderRadius: 24,
+          background: 'var(--tg-theme-secondary-bg-color)',
+          padding: 20,
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          transform: open ? 'scale(1)' : 'scale(0.9)',
+          opacity: open ? 1 : 0,
+          transition: 'transform 0.25s ease-out, opacity 0.25s ease-out',
+        }}
+      >
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h2 style={{ fontSize: 18, fontWeight: 600 }}>{t('profile.title')}</h2>
@@ -127,7 +166,7 @@ export default function UserProfileSheet({ user, photoUrl, onClose }) {
             {exporting ? '…' : t('profile.export')}
           </button>
         </>
-      )}
-    </BottomSheet>
+      </div>
+    </div>
   )
 }
