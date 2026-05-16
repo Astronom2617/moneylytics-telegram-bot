@@ -4,7 +4,11 @@ import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts'
 import { getStats, getExpenses, deleteExpense } from '../api.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
 import ExpenseDetailModal from '../components/ExpenseDetailModal.jsx'
+import Avatar from '../components/Avatar.jsx'
+import UserProfileSheet from '../components/UserProfileSheet.jsx'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
+
+const TG_PHOTO_URL = window.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url ?? null
 
 const CATEGORY_COLORS = {
   Food: '#F59E0B',
@@ -101,6 +105,7 @@ export default function Dashboard({ user }) {
   const [showModal,   setShowModal]   = useState(false)
   const [detailOpen,  setDetailOpen]  = useState(false)
   const [deleting,    setDeleting]    = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
 
   const cur  = user?.currency ?? 'EUR'
   const lang = user?.language ?? 'en'
@@ -153,7 +158,6 @@ export default function Dashboard({ user }) {
   const txWord = (n) => n === 1 ? t('dashboard.transaction') : t('dashboard.transactions')
 
   const lastTxCat = lastTx ? capCat(lastTx.category) : null
-  const initial = (user?.first_name ?? 'U').trim().charAt(0).toUpperCase() || 'U'
 
   const dailyData = (stats?.daily_last_7 || []).map((d) => ({
     ...d,
@@ -175,17 +179,12 @@ export default function Dashboard({ user }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: '50%',
-            background: 'var(--accent-gradient)',
-            color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 22, fontWeight: 700,
-            boxShadow: 'var(--shadow-accent)',
-            letterSpacing: 0,
-          }}>
-            {initial}
-          </div>
+          <Avatar
+            photoUrl={TG_PHOTO_URL}
+            name={user?.first_name}
+            size={40}
+            onClick={() => setShowProfile(true)}
+          />
           {streak > 0 ? (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 4,
@@ -411,6 +410,14 @@ export default function Dashboard({ user }) {
           onClose={() => setDetailOpen(false)}
           onDelete={handleDeleteLastTx}
           deleting={deleting}
+        />
+      )}
+
+      {showProfile && (
+        <UserProfileSheet
+          user={user}
+          photoUrl={TG_PHOTO_URL}
+          onClose={() => setShowProfile(false)}
         />
       )}
     </div>

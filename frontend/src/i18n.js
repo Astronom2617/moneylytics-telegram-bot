@@ -88,6 +88,13 @@ const dict = {
     'settings.loggedInAs':        'Logged in as',
     'settings.id':                'ID',
 
+    // Profile
+    'profile.title':       'Profile',
+    'profile.memberSince': 'Member since',
+    'profile.transactions':'transactions',
+    'profile.totalSpent':  'Total spent',
+    'profile.export':      'Export CSV',
+
     // Categories
     'cat.Food':          'Food',
     'cat.Transport':     'Transport',
@@ -182,6 +189,12 @@ const dict = {
     'settings.loggedInAs':        'Вы вошли как',
     'settings.id':                'ID',
 
+    'profile.title':       'Профиль',
+    'profile.memberSince': 'С нами с',
+    'profile.transactions':'операций',
+    'profile.totalSpent':  'Всего потрачено',
+    'profile.export':      'Экспорт в CSV',
+
     'cat.Food':          'Еда',
     'cat.Transport':     'Транспорт',
     'cat.Shopping':      'Покупки',
@@ -274,6 +287,12 @@ const dict = {
     'settings.saved':             'Збережено!',
     'settings.loggedInAs':        'Ви увійшли як',
     'settings.id':                'ID',
+
+    'profile.title':       'Профіль',
+    'profile.memberSince': 'З нами з',
+    'profile.transactions':'операцій',
+    'profile.totalSpent':  'Усього витрачено',
+    'profile.export':      'Експорт у CSV',
 
     'cat.Food':          'Їжа',
     'cat.Transport':     'Транспорт',
