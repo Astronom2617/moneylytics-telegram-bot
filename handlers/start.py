@@ -80,7 +80,7 @@ async def command_app_handler(message: Message):
             web_app=WebAppInfo(url="https://moneylytics-bot-9bebd4a93154.herokuapp.com")
         )
     ]])
-    await message.answer(t(lang, "app.open", default="Tap the button to open Moneylytics:"), reply_markup=kb)
+    await message.answer(t(lang, "app.open"), reply_markup=kb)
 
 
 @router.message(Command("settings"))

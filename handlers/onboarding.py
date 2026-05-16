@@ -112,6 +112,8 @@ async def onboarding_currency_selected(callback: CallbackQuery, state: FSMContex
         reply_markup=get_main_menu(lang)
     )
 
-    await callback.message.answer(t(lang, "start.add_expenses_hint"))
+    await callback.message.answer(
+        t(lang, "start.add_expenses_hint") + "\n\n" + t(lang, "start.app_hint")
+    )
 
     await callback.answer()
