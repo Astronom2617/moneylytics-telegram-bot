@@ -182,8 +182,7 @@ def update_expense(
     if body.get("expense_date"):
         try:
             d = datetime.strptime(body["expense_date"], "%Y-%m-%d")
-            cur = expense.created_at or datetime.utcnow()
-            expense.created_at = cur.replace(year=d.year, month=d.month, day=d.day)
+            expense.created_at = d.replace(hour=0, minute=0, second=0, microsecond=0)
         except (TypeError, ValueError):
             pass
     db.commit()
