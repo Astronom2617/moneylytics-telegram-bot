@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import { getStats } from '../api.js'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
+import { currencySymbol } from '../currency.js'
 
 const PERIOD_IDS = ['today', 'week', 'month']
 
@@ -35,14 +36,21 @@ const CustomTooltip = ({ active, payload, currency, language, translateName }) =
 }
 
 export default function Analytics({ user }) {
-  const [period,  setPeriod]  = useState('week')
-  const [stats,   setStats]   = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [period,   setPeriod]   = useState('week')
+  const [currency, setCurrency] = useState(null)
+  const [stats,    setStats]    = useState(null)
+  const [loading,  setLoading]  = useState(true)
 
   const cur = user?.currency ?? 'EUR'
   const lang = user?.language ?? 'en'
   const locale = localeFor(lang)
   const t = useTranslation(lang)
+
+  const available = stats?.currencies ?? []
+  const hasSwitcher = available.length > 1
+  // When several currencies exist each one gets its own independent analytics;
+  // with a single currency nothing changes and no switcher is shown.
+  const activeCur = hasSwitcher ? (currency ?? (available.includes(cur) ? cur : available[0])) : cur
 
   const formatDay = (isoDate) => {
     try {
@@ -54,13 +62,28 @@ export default function Analytics({ user }) {
 
   const load = useCallback(() => {
     setLoading(true)
-    getStats(period)
+    getStats(period, currency || undefined)
       .then(setStats)
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [period])
+  }, [period, currency])
 
   useEffect(() => { load() }, [load])
+
+  // Once we know which currencies exist, lock onto a sensible default (the
+  // user's own currency if present) and re-fetch filtered. Also recovers if
+  // the chosen currency has no data in a newly selected period.
+  useEffect(() => {
+    if (!stats) return
+    const list = stats.currencies ?? []
+    if (list.length <= 1) {
+      if (currency !== null) setCurrency(null)
+      return
+    }
+    if (currency === null || !list.includes(currency)) {
+      setCurrency(list.includes(cur) ? cur : list[0])
+    }
+  }, [stats, currency, cur])
 
   return (
     <div className="page">
@@ -80,6 +103,21 @@ export default function Analytics({ user }) {
         ))}
       </div>
 
+      {hasSwitcher && (
+        <div className="chips currency-switch">
+          {available.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`chip ${activeCur === c ? 'active' : ''}`}
+              onClick={() => setCurrency(c)}
+            >
+              {currencySymbol(c)} {c}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading || !stats ? (
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
           <div className="spinner" />
@@ -97,7 +135,9 @@ export default function Analytics({ user }) {
               { label: t('period.week'),   value: stats.week },
               { label: t('period.month'),  value: stats.month },
             ].map(({ label, value }) => {
-              const entries = Object.entries(value || {})
+              const entries = hasSwitcher
+                ? [[activeCur, (value || {})[activeCur] || 0]]
+                : Object.entries(value || {})
               return (
                 <div key={label} style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
                   <p style={{ fontSize: 11, color: 'var(--tg-theme-hint-color)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
@@ -105,7 +145,7 @@ export default function Analytics({ user }) {
                   </p>
                   {entries.length === 0 ? (
                     <p className="amount" style={{ fontSize: 16, fontWeight: 500, marginTop: 2 }}>
-                      {cur} 0
+                      {activeCur} 0
                     </p>
                   ) : entries.map(([c, v]) => (
                     <p key={c} className="amount" style={{ fontSize: 14, fontWeight: 500, marginTop: 2, lineHeight: 1.25 }}>
@@ -123,7 +163,7 @@ export default function Analytics({ user }) {
             fontStyle: 'italic',
             margin: '-4px 4px 12px',
           }}>
-            ℹ️ {t('analytics.totalsNote')}
+            ℹ️ {hasSwitcher ? `${activeCur} · ${t('analytics.currencyNote')}` : t('analytics.totalsNote')}
           </p>
 
           <p style={{
@@ -152,7 +192,7 @@ export default function Analytics({ user }) {
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip currency={cur} translateName={(n) => translateCategory(n, lang)} />} />
+                <Tooltip content={<CustomTooltip currency={activeCur} translateName={(n) => translateCategory(n, lang)} />} />
               </PieChart>
             </ResponsiveContainer>
 
@@ -165,7 +205,7 @@ export default function Analytics({ user }) {
                     <div style={{ width: 10, height: 10, borderRadius: 3, background: COLORS[i % COLORS.length], flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: 14 }}>{translateCategory(item.category, lang)}</span>
                     <span className="amount" style={{ fontSize: 14, color: 'var(--tg-theme-hint-color)' }}>{pct}%</span>
-                    <span className="amount" style={{ fontSize: 14, fontWeight: 500 }}>{cur} {item.total.toFixed(2)}</span>
+                    <span className="amount" style={{ fontSize: 14, fontWeight: 500 }}>{activeCur} {item.total.toFixed(2)}</span>
                   </div>
                 )
               })}
@@ -197,7 +237,7 @@ export default function Analytics({ user }) {
                   axisLine={false}
                   tickLine={false}
                 />
-                <Tooltip content={<CustomTooltip currency={cur} />} cursor={{ fill: 'var(--accent-light)' }} />
+                <Tooltip content={<CustomTooltip currency={activeCur} />} cursor={{ fill: 'var(--accent-light)' }} />
                 <Bar dataKey="total" name={t('dashboard.spent')} fill="var(--accent)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

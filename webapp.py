@@ -195,7 +195,7 @@ def delete_expense(expense_id: int, user_id: int = Depends(get_current_user_id),
 
 
 @app.get("/api/stats")
-def get_stats(period: str = "week", user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+def get_stats(period: str = "week", currency: str | None = None, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
     now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start  = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -213,18 +213,31 @@ def get_stats(period: str = "week", user_id: int = Depends(get_current_user_id),
         ).scalar() or 0
 
     since = _period_start(period) or month_start
-    by_category = db.query(
+
+    # Distinct currencies in the period — drives the Analytics currency switcher.
+    # Computed before the currency filter so the full set stays visible.
+    cur_rows = db.query(Expense.currency).filter(
+        and_(Expense.user_id == user_id, Expense.created_at >= since)
+    ).distinct().all()
+    currencies = sorted({row[0] or "EUR" for row in cur_rows})
+
+    cat_q = db.query(
         Expense.category, func.sum(Expense.amount).label("total")
-    ).filter(and_(Expense.user_id == user_id, Expense.created_at >= since)
-    ).group_by(Expense.category).order_by(func.sum(Expense.amount).desc()).all()
+    ).filter(and_(Expense.user_id == user_id, Expense.created_at >= since))
+    if currency:
+        cat_q = cat_q.filter(Expense.currency == currency)
+    by_category = cat_q.group_by(Expense.category).order_by(func.sum(Expense.amount).desc()).all()
 
     daily = []
     for i in range(6, -1, -1):
         day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
         day_end   = day_start + timedelta(days=1)
-        r = db.query(func.sum(Expense.amount)).filter(
+        day_q = db.query(func.sum(Expense.amount)).filter(
             and_(Expense.user_id == user_id, Expense.created_at >= day_start, Expense.created_at < day_end)
-        ).scalar()
+        )
+        if currency:
+            day_q = day_q.filter(Expense.currency == currency)
+        r = day_q.scalar()
         daily.append({"date": day_start.strftime("%Y-%m-%d"), "total": round(r or 0.0, 2)})
 
     return {
@@ -234,6 +247,7 @@ def get_stats(period: str = "week", user_id: int = Depends(get_current_user_id),
         "count_today": count_since(today_start),
         "count_week":  count_since(week_start),
         "count_month": count_since(month_start),
+        "currencies":  currencies,
         "by_category":  [{"category": row.category, "total": round(row.total, 2)} for row in by_category],
         "daily_last_7": daily,
     }
