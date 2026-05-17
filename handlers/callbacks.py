@@ -113,7 +113,8 @@ async def set_budget(message: Message, state: FSMContext, field: str, label: str
                 await message.answer(t(lang, "budget.weekly_less_than_daily", daily=f"{user.daily_budget:.2f}"))
                 return
 
-        setattr(user, field, amount)
+        period = "daily" if field == "daily_budget" else "weekly"
+        user.set_budget_value(user.currency or "EUR", period, amount)
         session.commit()
         currency = user.currency or "EUR"
         lang = get_user_language(user, detect_language(message.from_user.language_code))
@@ -131,7 +132,8 @@ async def clear_budget(callback: CallbackQuery, field: str, label: str):
             await callback.message.answer(t(detect_language(callback.from_user.language_code), "common.profile_missing"))
             await callback.answer()
             return
-        setattr(user, field, None)
+        period = "daily" if field == "daily_budget" else "weekly"
+        user.set_budget_value(user.currency or "EUR", period, None)
         session.commit()
         lang = get_user_language(user, detect_language(callback.from_user.language_code))
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus } from 'lucide-react'
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts'
 import { getStats, getExpenses, deleteExpense } from '../api.js'
+import { currencySymbol } from '../currency.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
 import ExpenseDetailModal from '../components/ExpenseDetailModal.jsx'
 import Avatar from '../components/Avatar.jsx'
@@ -31,12 +32,34 @@ const CATEGORY_EMOJI = {
   Gifts: '🎁', Other: '💰',
 }
 
+const SECTION_LABEL = {
+  fontSize: 13, fontWeight: 600,
+  color: 'var(--tg-theme-hint-color)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+  marginBottom: 10,
+  marginTop: 8,
+}
+
 function capCat(cat) {
   return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
 }
 
 function ymd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+// Trims trailing zeros so limits read as "50" but "12.50" keeps its cents.
+function money(n) {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2)
+}
+
+function dayLabel(isoDate, locale) {
+  try {
+    return new Date(isoDate + 'T00:00:00').toLocaleDateString(locale, { weekday: 'short' })
+  } catch {
+    return isoDate
+  }
 }
 
 function computeStreak(expenses) {
@@ -52,12 +75,13 @@ function computeStreak(expenses) {
   return streak
 }
 
-// Primary currency (user's default) shown large; any other currencies stacked
-// small underneath. With a single currency this renders exactly like before.
+// Primary currency (user's default) shown large; any other currencies are
+// stacked compactly underneath as a single muted, wrapping line so three
+// cards still fit a phone row no matter how many currencies are in play.
 function StatValue({ totals, primary }) {
   const entries = Object.entries(totals || {})
   if (entries.length === 0) {
-    return <p className="stat-value">{primary} 0</p>
+    return <p className="stat-value">{currencySymbol(primary)}0</p>
   }
   entries.sort((a, b) => {
     if (a[0] === primary) return -1
@@ -68,37 +92,99 @@ function StatValue({ totals, primary }) {
   const rest = entries.slice(1)
   return (
     <>
-      <p className="stat-value">{mainCur} {mainVal.toFixed(0)}</p>
-      {rest.map(([c, v]) => (
-        <p key={c} className="stat-value-sub">{c} {v.toFixed(0)}</p>
-      ))}
+      <p className="stat-value">{currencySymbol(mainCur)}{mainVal.toFixed(0)}</p>
+      {rest.length > 0 && (
+        <p className="stat-value-sub">
+          {rest.map(([c, v]) => `${currencySymbol(c)}${v.toFixed(0)}`).join(' · ')}
+        </p>
+      )}
     </>
   )
 }
 
-function BudgetBar({ totals, budget, currency, t }) {
-  if (!budget) return null
-  const spent = (totals && totals[currency]) || 0
-  const pct = Math.min((spent / budget) * 100, 100)
+function BudgetRow({ label, spent, limit, symbol, t }) {
+  const pct = Math.min((spent / limit) * 100, 100)
   const color = pct < 70 ? 'var(--success)' : pct < 95 ? 'var(--accent)' : 'var(--danger)'
-  const remaining = budget - spent
-
+  const remaining = limit - spent
   return (
-    <div style={{ marginTop: 8 }}>
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{
+          fontSize: 11, fontWeight: 600, letterSpacing: '0.4px',
+          textTransform: 'uppercase', color: 'var(--tg-theme-hint-color)',
+        }}>
+          {label}
+        </span>
+        <span className="amount" style={{ fontSize: 13 }}>
+          <span style={{ fontWeight: 600 }}>{symbol}{money(spent)}</span>
+          <span style={{ color: 'var(--tg-theme-hint-color)' }}> / {symbol}{money(limit)}</span>
+        </span>
+      </div>
       <div className="progress-bar">
         <div className="progress-fill" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <p style={{ fontSize: 12, color: 'var(--tg-theme-hint-color)', marginTop: 6 }}>
-        {remaining > 0
-          ? <>{currency} {remaining.toFixed(2)} {t('dashboard.left')}</>
-          : <span style={{ color: 'var(--danger)' }}>{t('dashboard.overBudgetBy')} {currency} {Math.abs(remaining).toFixed(2)}</span>
-        }
+      <p style={{ fontSize: 11, color: 'var(--tg-theme-hint-color)', marginTop: 5 }}>
+        {remaining >= 0
+          ? <>{symbol}{money(remaining)} {t('dashboard.left')}</>
+          : <span style={{ color: 'var(--danger)' }}>{t('dashboard.overBudgetBy')} {symbol}{Math.abs(remaining).toFixed(2)}</span>}
       </p>
     </div>
   )
 }
 
-const SparkTooltip = ({ active, payload, currency }) => {
+// One card per currency that actually has a limit. Currencies without a
+// budget are skipped entirely — no empty placeholders — and the whole
+// section disappears when nothing is configured.
+function Budgets({ budgets, stats, primary, t }) {
+  const order = [primary, ...Object.keys(budgets).filter((c) => c !== primary)]
+  const cards = order
+    .filter((c) => budgets[c] && (budgets[c].daily || budgets[c].weekly))
+    .map((c) => {
+      const b = budgets[c]
+      const sym = currencySymbol(c)
+      return (
+        <div key={c} className="card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              fontSize: 12, fontWeight: 700,
+              background: 'var(--accent-light)', color: 'var(--accent-dark)',
+              borderRadius: 8, padding: '3px 9px',
+            }}>
+              {sym} {c}
+            </span>
+          </div>
+          {b.daily ? (
+            <BudgetRow
+              label={t('dashboard.today')}
+              spent={(stats.today || {})[c] || 0}
+              limit={b.daily}
+              symbol={sym}
+              t={t}
+            />
+          ) : null}
+          {b.weekly ? (
+            <BudgetRow
+              label={t('dashboard.thisWeek')}
+              spent={(stats.week || {})[c] || 0}
+              limit={b.weekly}
+              symbol={sym}
+              t={t}
+            />
+          ) : null}
+        </div>
+      )
+    })
+
+  if (!cards.length) return null
+  return (
+    <>
+      <p style={SECTION_LABEL}>{t('dashboard.budgets')}</p>
+      {cards}
+    </>
+  )
+}
+
+const SparkTooltip = ({ active, payload, symbol }) => {
   if (!active || !payload?.length) return null
   return (
     <div style={{
@@ -109,9 +195,58 @@ const SparkTooltip = ({ active, payload, currency }) => {
     }}>
       <p style={{ fontWeight: 500 }}>{payload[0].payload?.label || payload[0].payload?.date}</p>
       <p style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
-        {currency} {Number(payload[0].value).toFixed(2)}
+        {symbol}{Number(payload[0].value).toFixed(2)}
       </p>
     </div>
+  )
+}
+
+// Defaults to the user's main currency; a compact symbol switcher appears
+// only when more than one currency had spend in the last 7 days. The
+// tooltip always reflects the selected currency, never a mixed total.
+function Sparkline({ byCur, primary, t, locale }) {
+  const [picked, setPicked] = useState(null)
+  const spendCurs = Object.keys(byCur).filter((c) => byCur[c].some((d) => d.total > 0))
+  const ordered = [primary, ...spendCurs.filter((c) => c !== primary)]
+    .filter((c) => spendCurs.includes(c))
+
+  if (!ordered.length) return null
+
+  const active = picked && ordered.includes(picked) ? picked : ordered[0]
+  const data = (byCur[active] || []).map((d) => ({ ...d, label: dayLabel(d.date, locale) }))
+
+  return (
+    <>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        margin: '4px 2px 8px',
+      }}>
+        <p style={{ ...SECTION_LABEL, margin: 0 }}>{t('dashboard.spendTrend')}</p>
+        {ordered.length > 1 && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            {ordered.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`chip ${active === c ? 'active' : ''}`}
+                style={{ padding: '3px 10px', fontSize: 12 }}
+                onClick={() => setPicked(c)}
+              >
+                {currencySymbol(c)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="card" style={{ padding: '10px 8px 4px' }}>
+        <ResponsiveContainer width="100%" height={80}>
+          <BarChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+            <Tooltip content={<SparkTooltip symbol={currencySymbol(active)} />} cursor={{ fill: 'var(--accent-light)' }} />
+            <Bar dataKey="total" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </>
   )
 }
 
@@ -129,10 +264,14 @@ export default function Dashboard({ user }) {
   const lang = user?.language ?? 'en'
   const locale = localeFor(lang)
   const t = useTranslation(lang)
+  const budgets = user?.budgets ?? {}
 
   const loadAll = useCallback(() => {
     setLoading(true)
-    Promise.all([getStats('week'), getExpenses('month')])
+    // Pass the main currency so "top categories" is single-currency and not
+    // a meaningless cross-currency sum; multi-currency totals and the per
+    // currency sparkline series are unaffected by this filter.
+    Promise.all([getStats('week', cur), getExpenses('month')])
       .then(([s, list]) => {
         setStats(s)
         setLastTx(list[0] || null)
@@ -140,7 +279,7 @@ export default function Dashboard({ user }) {
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [cur])
 
   useEffect(() => { loadAll() }, [loadAll])
 
@@ -176,14 +315,6 @@ export default function Dashboard({ user }) {
   const txWord = (n) => n === 1 ? t('dashboard.transaction') : t('dashboard.transactions')
 
   const lastTxCat = lastTx ? capCat(lastTx.category) : null
-
-  const dailyData = (stats?.daily_last_7 || []).map((d) => ({
-    ...d,
-    label: (() => {
-      try { return new Date(d.date + 'T00:00:00').toLocaleDateString(locale, { weekday: 'short' }) }
-      catch { return d.date }
-    })(),
-  }))
 
   return (
     <div className="page">
@@ -260,32 +391,7 @@ export default function Dashboard({ user }) {
             </div>
           </div>
 
-          {(user?.daily_budget || user?.weekly_budget) && (
-            <div className="card">
-              {user?.daily_budget && (
-                <div style={{ marginBottom: user?.weekly_budget ? 14 : 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)', fontWeight: 500 }}>{t('dashboard.today')}</span>
-                    <span className="amount" style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)' }}>
-                      {t('dashboard.of')} {cur} {user.daily_budget}
-                    </span>
-                  </div>
-                  <BudgetBar totals={stats.today} budget={user.daily_budget} currency={cur} t={t} />
-                </div>
-              )}
-              {user?.weekly_budget && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)', fontWeight: 500 }}>{t('dashboard.thisWeek')}</span>
-                    <span className="amount" style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)' }}>
-                      {t('dashboard.of')} {cur} {user.weekly_budget}
-                    </span>
-                  </div>
-                  <BudgetBar totals={stats.week} budget={user.weekly_budget} currency={cur} t={t} />
-                </div>
-              )}
-            </div>
-          )}
+          <Budgets budgets={budgets} stats={stats} primary={cur} t={t} />
 
           {Object.keys(stats.today || {}).length === 0 && (
             <p style={{ fontSize: 13, color: 'var(--success)', textAlign: 'center', margin: '4px 0 12px' }}>
@@ -293,16 +399,12 @@ export default function Dashboard({ user }) {
             </p>
           )}
 
-          {dailyData.some((d) => d.total > 0) && (
-            <div className="card" style={{ padding: '10px 8px 4px' }}>
-              <ResponsiveContainer width="100%" height={80}>
-                <BarChart data={dailyData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-                  <Tooltip content={<SparkTooltip currency={cur} />} cursor={{ fill: 'var(--accent-light)' }} />
-                  <Bar dataKey="total" fill="var(--accent)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+          <Sparkline
+            byCur={stats.daily_by_currency || {}}
+            primary={cur}
+            t={t}
+            locale={locale}
+          />
 
           <p style={{
             fontSize: 11,
@@ -315,15 +417,7 @@ export default function Dashboard({ user }) {
 
           {lastTx && (
             <>
-              <p style={{
-                fontSize: 13, fontWeight: 600,
-                color: 'var(--tg-theme-hint-color)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                marginBottom: 10,
-              }}>
-                {t('dashboard.lastTx')}
-              </p>
+              <p style={SECTION_LABEL}>{t('dashboard.lastTx')}</p>
               <div
                 className="card"
                 onClick={() => setDetailOpen(true)}
@@ -349,7 +443,7 @@ export default function Dashboard({ user }) {
                   </p>
                 </div>
                 <p className="amount" style={{ fontSize: 16, fontWeight: 600 }}>
-                  {lastTx.currency} {lastTx.amount.toFixed(2)}
+                  {currencySymbol(lastTx.currency)}{lastTx.amount.toFixed(2)}
                 </p>
               </div>
             </>
@@ -357,16 +451,7 @@ export default function Dashboard({ user }) {
 
           {stats.by_category.length > 0 ? (
             <>
-              <p style={{
-                fontSize: 13, fontWeight: 600,
-                color: 'var(--tg-theme-hint-color)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                marginBottom: 10,
-                marginTop: 8,
-              }}>
-                {t('dashboard.topCategories')}
-              </p>
+              <p style={SECTION_LABEL}>{t('dashboard.topCategories')}</p>
               <div className="card" style={{ padding: '8px 0' }}>
                 {stats.by_category.slice(0, 5).map((item, i) => {
                   const cap = capCat(item.category)
@@ -382,7 +467,7 @@ export default function Dashboard({ user }) {
                           {translateCategory(item.category, lang)}
                         </span>
                         <span className="amount" style={{ fontSize: 14, color, fontWeight: 600 }}>
-                          {cur} {item.total.toFixed(2)}
+                          {currencySymbol(cur)}{item.total.toFixed(2)}
                         </span>
                       </div>
                       <div style={{ height: 4, borderRadius: 2, background: 'var(--tg-theme-bg-color)' }}>

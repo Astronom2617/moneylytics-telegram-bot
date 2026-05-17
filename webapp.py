@@ -228,10 +228,20 @@ def get_stats(period: str = "week", currency: str | None = None, user_id: int = 
         cat_q = cat_q.filter(Expense.currency == currency)
     by_category = cat_q.group_by(Expense.category).order_by(func.sum(Expense.amount).desc()).all()
 
+    # Last-7-day window. `daily` keeps the legacy single-series shape (honors
+    # the `currency` filter) for Analytics; `daily_by_currency` is the per
+    # currency breakdown the Dashboard sparkline needs and is intentionally
+    # NOT filtered, so its currency switcher always sees every currency.
+    week_days = [
+        (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        for i in range(6, -1, -1)
+    ]
+    seven_start = week_days[0]
+    seven_end = week_days[-1] + timedelta(days=1)
+
     daily = []
-    for i in range(6, -1, -1):
-        day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
-        day_end   = day_start + timedelta(days=1)
+    for day_start in week_days:
+        day_end = day_start + timedelta(days=1)
         day_q = db.query(func.sum(Expense.amount)).filter(
             and_(Expense.user_id == user_id, Expense.created_at >= day_start, Expense.created_at < day_end)
         )
@@ -239,6 +249,23 @@ def get_stats(period: str = "week", currency: str | None = None, user_id: int = 
             day_q = day_q.filter(Expense.currency == currency)
         r = day_q.scalar()
         daily.append({"date": day_start.strftime("%Y-%m-%d"), "total": round(r or 0.0, 2)})
+
+    by_cur_rows = db.query(
+        func.date(Expense.created_at), Expense.currency, func.sum(Expense.amount)
+    ).filter(
+        and_(Expense.user_id == user_id,
+             Expense.created_at >= seven_start, Expense.created_at < seven_end)
+    ).group_by(func.date(Expense.created_at), Expense.currency).all()
+
+    sums = {}
+    for day_val, cur, total in by_cur_rows:
+        key = day_val if isinstance(day_val, str) else day_val.strftime("%Y-%m-%d")
+        sums[(key, cur or "EUR")] = round(float(total or 0.0), 2)
+    day_labels = [d.strftime("%Y-%m-%d") for d in week_days]
+    daily_by_currency = {
+        c: [{"date": d, "total": sums.get((d, c), 0.0)} for d in day_labels]
+        for c in {cur for (_, cur) in sums}
+    }
 
     return {
         "today": totals_by_currency_since(today_start),
@@ -250,6 +277,7 @@ def get_stats(period: str = "week", currency: str | None = None, user_id: int = 
         "currencies":  currencies,
         "by_category":  [{"category": row.category, "total": round(row.total, 2)} for row in by_category],
         "daily_last_7": daily,
+        "daily_by_currency": daily_by_currency,
     }
 
 
@@ -301,14 +329,46 @@ def get_user(user_id: int = Depends(get_current_user_id), db: Session = Depends(
     return _user_dict(user)
 
 
+_KNOWN_CURRENCIES = ("EUR", "USD", "UAH", "GBP")
+
+
+def _clean_budgets(raw) -> dict:
+    """Validate the incoming per-currency budget map. Drops unknown
+    currencies, non-positive/invalid limits, and empty currency entries
+    so the stored shape stays {cur: {daily?: float, weekly?: float}}."""
+    if not isinstance(raw, dict):
+        return {}
+    clean = {}
+    for cur, limits in raw.items():
+        if cur not in _KNOWN_CURRENCIES or not isinstance(limits, dict):
+            continue
+        entry = {}
+        for period in ("daily", "weekly"):
+            value = limits.get(period)
+            if value in (None, ""):
+                continue
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                continue
+            if value > 0:
+                entry[period] = round(value, 2)
+        if entry:
+            clean[cur] = entry
+    return clean
+
+
 @app.put("/api/user")
 def update_user(body: dict, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404)
-    for field in ("daily_budget", "weekly_budget", "currency", "language"):
-        if field in body:
-            setattr(user, field, body[field] if body[field] != "" else None)
+    if body.get("currency"):
+        user.currency = body["currency"]
+    if body.get("language"):
+        user.language = body["language"]
+    if "budgets" in body:
+        user.budgets = _clean_budgets(body["budgets"])
     db.commit()
     return _user_dict(user)
 
@@ -316,7 +376,7 @@ def update_user(body: dict, user_id: int = Depends(get_current_user_id), db: Ses
 def _user_dict(u):
     return {"id": u.id, "first_name": u.first_name, "username": u.username,
             "currency": u.currency, "language": u.language,
-            "daily_budget": u.daily_budget, "weekly_budget": u.weekly_budget,
+            "budgets": u.budgets or {},
             "created_at": u.created_at.isoformat() if u.created_at else None}
 
 def _expense_dict(e):
