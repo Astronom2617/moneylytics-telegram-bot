@@ -4,6 +4,7 @@ import { createExpense } from '../api.js'
 import { useTranslation } from '../i18n.js'
 import { CURRENCIES, currencySymbol, normalizeCurrency } from '../currency.js'
 import BottomSheet from './BottomSheet.jsx'
+import DatePicker from './DatePicker.jsx'
 
 const CATEGORIES = [
   { id: 'Food',          emoji: '🍕' },
@@ -105,14 +106,14 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
           </div>
 
           <label className="form-label">{t('expense.date')}</label>
-          <input
-            className="input"
-            type="date"
-            value={date}
-            max={today}
-            onChange={(e) => setDate(e.target.value || today)}
-            style={{ marginBottom: 16 }}
-          />
+          <div style={{ marginBottom: 16 }}>
+            <DatePicker
+              value={date}
+              onChange={setDate}
+              language={user?.language}
+              maxDate={today}
+            />
+          </div>
 
           <label className="form-label">{t('settings.currency')}</label>
           <div className="chips" style={{ marginBottom: 16 }}>
