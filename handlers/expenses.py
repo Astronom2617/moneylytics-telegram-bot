@@ -71,6 +71,34 @@ def get_currency_symbol(currency: str | None) -> str:
     return CURRENCY_SYMBOLS.get(code, code)
 
 
+def _fmt_amount(amount: float) -> str:
+    return f"{amount:.2f}".rstrip("0").rstrip(".")
+
+
+def build_saved_text(lang: str, saved_expense, category: str, description: str | None, use_code: bool) -> str:
+    """Confirmation message. When the currency was stated explicitly (parsed from
+    the message or picked from the keyboard) we echo the currency code so the
+    user can see it was understood: '✅ 50 USD · еда · pizza'."""
+    clean = html.quote(description.strip().replace("\n", " ")) if description else None
+    if use_code:
+        desc_text = f" · {clean}" if clean else ""
+        return html.bold(t(
+            lang, "expense.saved_cur",
+            amount=_fmt_amount(saved_expense.amount),
+            currency=saved_expense.currency or "EUR",
+            category=html.quote(t_category(lang, category)),
+            description=desc_text,
+        ))
+    desc_text = f" ({clean})" if clean else ""
+    return html.bold(t(
+        lang, "expense.saved",
+        amount=f"{saved_expense.amount:.2f}",
+        currency=get_currency_symbol(saved_expense.currency),
+        category=html.quote(t_category(lang, category)),
+        description=desc_text,
+    ))
+
+
 def extract_explicit_currency(parts: list[str]) -> tuple[list[str], str | None]:
     if not parts:
         return parts, None
@@ -335,25 +363,8 @@ async def add_expenses(message: Message, state: FSMContext):
     )
 
     with get_session() as session:
-        currency_symbol = get_currency_symbol(saved_expense.currency)
-
-        if description:
-            clean_description = description.strip().replace("\n", " ")
-            desc_text = " (" + html.quote(clean_description) + ")"
-        else:
-            desc_text = ""
-
         await message.answer(
-            html.bold(
-                t(
-                    lang,
-                    "expense.saved",
-                    amount=f"{amount:.2f}",
-                    currency=currency_symbol,
-                    category=html.quote(t_category(lang, category)),
-                    description=desc_text,
-                )
-            )
+            build_saved_text(lang, saved_expense, category, description, use_code=bool(explicit_currency))
         )
 
         warnings = await get_budget_warnings(message.from_user.id, session, lang)
@@ -423,24 +434,8 @@ async def pending_expense_category_selected(callback: CallbackQuery, state: FSMC
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         lang = get_user_language(user, detect_language(callback.from_user.language_code))
 
-    currency_symbol = get_currency_symbol(saved_expense.currency)
-    if description:
-        clean_description = description.strip().replace("\n", " ")
-        desc_text = " (" + html.quote(clean_description) + ")"
-    else:
-        desc_text = ""
-
     await callback.message.edit_text(
-        html.bold(
-            t(
-                lang,
-                "expense.saved",
-                amount=f"{saved_expense.amount:.2f}",
-                currency=currency_symbol,
-                category=html.quote(t_category(lang, new_category)),
-                description=desc_text,
-            )
-        )
+        build_saved_text(lang, saved_expense, new_category, description, use_code=bool(explicit_currency))
     )
 
     with get_session() as session:
@@ -485,24 +480,8 @@ async def pending_expense_currency_selected(callback: CallbackQuery, state: FSMC
         user = session.query(User).filter(User.id == callback.from_user.id).first()
         lang = get_user_language(user, detect_language(callback.from_user.language_code))
 
-    currency_symbol = get_currency_symbol(saved_expense.currency)
-    if description:
-        clean_description = description.strip().replace("\n", " ")
-        desc_text = " (" + html.quote(clean_description) + ")"
-    else:
-        desc_text = ""
-
     await callback.message.edit_text(
-        html.bold(
-            t(
-                lang,
-                "expense.saved",
-                amount=f"{saved_expense.amount:.2f}",
-                currency=currency_symbol,
-                category=html.quote(t_category(lang, category)),
-                description=desc_text,
-            )
-        )
+        build_saved_text(lang, saved_expense, category, description, use_code=True)
     )
 
     with get_session() as session:

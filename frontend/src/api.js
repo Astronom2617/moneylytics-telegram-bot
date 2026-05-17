@@ -28,7 +28,8 @@ export const createExpense  = (data)               => request('POST', '/api/expe
 export const updateExpense  = (id, data)           => request('PUT', `/api/expenses/${id}`, data)
 export const deleteExpense  = (id)                 => request('DELETE', `/api/expenses/${id}`)
 
-export const getStats        = (period = 'week') => request('GET', `/api/stats?period=${period}`)
+export const getStats        = (period = 'week', currency) =>
+  request('GET', `/api/stats?period=${period}${currency ? `&currency=${encodeURIComponent(currency)}` : ''}`)
 export const getAlltimeStats = ()                => request('GET', '/api/stats/alltime')
 
 export const exportCSV = async () => {

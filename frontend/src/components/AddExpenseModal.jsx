@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { createExpense } from '../api.js'
 import { useTranslation } from '../i18n.js'
+import { CURRENCIES, currencySymbol, normalizeCurrency } from '../currency.js'
 import BottomSheet from './BottomSheet.jsx'
 
 const CATEGORIES = [
@@ -22,6 +23,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
   const [amount,      setAmount]      = useState('')
   const [category,    setCategory]    = useState('Food')
   const [description, setDescription] = useState('')
+  const [currency,    setCurrency]    = useState(normalizeCurrency(user?.currency ?? 'EUR'))
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState(null)
   const t = useTranslation(user?.language)
@@ -44,7 +46,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
         amount: amt,
         category,
         description: description.trim() || undefined,
-        currency: user?.currency ?? 'EUR',
+        currency,
         client_now,
         timezone_offset: now.getTimezoneOffset(),
       })
@@ -71,25 +73,42 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
             </button>
           </div>
 
-          <label className="form-label">{t('common.amount')} ({user?.currency ?? 'EUR'})</label>
-          <input
-            className="input"
-            type="text"
-            inputMode="decimal"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => {
-              const v = e.target.value
-              if (v === '' || /^[0-9]*[.,]?[0-9]*$/.test(v)) setAmount(v)
-            }}
-            onKeyDown={(e) => {
-              if (e.key.length === 1 && !/[0-9.,]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault()
-              }
-            }}
-            style={{ fontSize: 24, fontFamily: 'var(--font-mono)', marginBottom: 16 }}
-            autoFocus
-          />
+          <label className="form-label">{t('common.amount')}</label>
+          <div className="amount-row">
+            <span className="amount-symbol" key={currency}>{currencySymbol(currency)}</span>
+            <input
+              className="input"
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^[0-9]*[.,]?[0-9]*$/.test(v)) setAmount(v)
+              }}
+              onKeyDown={(e) => {
+                if (e.key.length === 1 && !/[0-9.,]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+                  e.preventDefault()
+                }
+              }}
+              style={{ fontSize: 24, fontFamily: 'var(--font-mono)', flex: 1, minWidth: 0 }}
+              autoFocus
+            />
+          </div>
+
+          <label className="form-label">{t('settings.currency')}</label>
+          <div className="chips" style={{ marginBottom: 16 }}>
+            {CURRENCIES.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`chip ${currency === c ? 'active' : ''}`}
+                onClick={() => setCurrency(c)}
+              >
+                {currencySymbol(c)} {c}
+              </button>
+            ))}
+          </div>
 
           <label className="form-label">{t('common.category')}</label>
           <div className="chips" style={{ marginBottom: 16 }}>

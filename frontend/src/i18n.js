@@ -58,12 +58,14 @@ const dict = {
     'history.confirmDelete':      'Delete this expense?',
     'history.save':               'Save changes',
     'history.saving':             'Saving…',
+    'history.currencyLocked':     'Currency is locked',
 
     // Analytics
     'analytics.noData':           'No data for this period',
     'analytics.byCategory':       'By category',
     'analytics.last7Days':        'Last 7 days',
     'analytics.totalsNote':       'Totals shown in your current currency (no conversion)',
+    'analytics.currencyNote':     'Independent analytics per currency',
 
     // Common
     'common.addExpense':          'Add expense',
@@ -162,11 +164,13 @@ const dict = {
     'history.confirmDelete':      'Удалить этот расход?',
     'history.save':               'Сохранить',
     'history.saving':             'Сохранение…',
+    'history.currencyLocked':     'Валюта зафиксирована',
 
     'analytics.noData':           'Нет данных за этот период',
     'analytics.byCategory':       'По категориям',
     'analytics.last7Days':        'Последние 7 дней',
     'analytics.totalsNote':       'Суммы показаны в вашей текущей валюте (без конвертации)',
+    'analytics.currencyNote':     'Отдельная аналитика по каждой валюте',
 
     'common.addExpense':          'Добавить расход',
     'common.newExpense':          'Новый расход',
@@ -261,11 +265,13 @@ const dict = {
     'history.confirmDelete':      'Видалити цю витрату?',
     'history.save':               'Зберегти',
     'history.saving':             'Збереження…',
+    'history.currencyLocked':     'Валюта зафіксована',
 
     'analytics.noData':           'Немає даних за цей період',
     'analytics.byCategory':       'За категоріями',
     'analytics.last7Days':        'Останні 7 днів',
     'analytics.totalsNote':       'Суми показані у вашій поточній валюті (без конвертації)',
+    'analytics.currencyNote':     'Окрема аналітика для кожної валюти',
 
     'common.addExpense':          'Додати витрату',
     'common.newExpense':          'Нова витрата',

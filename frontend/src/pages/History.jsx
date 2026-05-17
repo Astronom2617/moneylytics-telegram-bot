@@ -5,6 +5,7 @@ import AddExpenseModal from '../components/AddExpenseModal.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import ExpenseDetailModal from '../components/ExpenseDetailModal.jsx'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
+import { currencySymbol } from '../currency.js'
 
 const PERIOD_IDS = ['today', 'week', 'month', 'all']
 
@@ -111,24 +112,28 @@ function ExpenseEditModal({ expense, language, onClose, onSaved }) {
             </button>
           </div>
 
-          <label className="form-label">{t('common.amount')} ({expense.currency})</label>
-          <input
-            className="input"
-            type="text"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => {
-              const v = e.target.value
-              if (v === '' || /^[0-9]*[.,]?[0-9]*$/.test(v)) setAmount(v)
-            }}
-            onKeyDown={(e) => {
-              if (e.key.length === 1 && !/[0-9.,]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault()
-              }
-            }}
-            style={{ fontSize: 24, fontFamily: 'var(--font-mono)', marginBottom: 16 }}
-            autoFocus
-          />
+          <label className="form-label">{t('common.amount')}</label>
+          <div className="amount-row">
+            <span className="amount-symbol">{currencySymbol(expense.currency)}</span>
+            <input
+              className="input"
+              type="text"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^[0-9]*[.,]?[0-9]*$/.test(v)) setAmount(v)
+              }}
+              onKeyDown={(e) => {
+                if (e.key.length === 1 && !/[0-9.,]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+                  e.preventDefault()
+                }
+              }}
+              style={{ fontSize: 24, fontFamily: 'var(--font-mono)', flex: 1, minWidth: 0 }}
+              autoFocus
+            />
+          </div>
+          <p className="currency-locked">🔒 {expense.currency} · {t('history.currencyLocked')}</p>
 
           <label className="form-label">{t('common.category')}</label>
           <div className="chips" style={{ marginBottom: 16 }}>
@@ -176,6 +181,7 @@ export default function History({ user }) {
   const [editing,     setEditing]     = useState(null)
 
   const lang = user?.language ?? 'en'
+  const cur = user?.currency ?? 'EUR'
   const locale = localeFor(lang)
   const t = useTranslation(lang)
 
@@ -314,6 +320,9 @@ export default function History({ user }) {
                       <p className="amount" style={{ fontSize: 16, fontWeight: 500 }}>
                         {e.currency} {e.amount.toFixed(2)}
                       </p>
+                      {e.currency && e.currency !== cur && (
+                        <span className="cur-badge">{currencySymbol(e.currency)} {e.currency}</span>
+                      )}
                     </div>
                   </div>
 

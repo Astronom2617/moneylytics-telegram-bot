@@ -75,6 +75,7 @@ TRANSLATIONS = {
             "I couldn't find your profile — please send /start to register."
         ),
         "expense.saved": "✅ Saved: {amount}{currency} — {category}{description}",
+        "expense.saved_cur": "✅ {amount} {currency} · {category}{description}",
         "expenses.choose_currency": "Choose a currency for this expense:",
         "expenses.missing_fields": "You must provide at least an amount and a category",
         "expenses.choose_category_to_save": "Choose a category to save this expense:",
@@ -265,6 +266,7 @@ TRANSLATIONS = {
             "Не удалось найти ваш профиль — отправьте /start, чтобы зарегистрироваться."
         ),
         "expense.saved": "✅ Сохранено: {amount}{currency} — {category}{description}",
+        "expense.saved_cur": "✅ {amount} {currency} · {category}{description}",
         "expenses.choose_currency": "Выберите валюту для этого расхода:",
         "expenses.missing_fields": "Нужно указать как минимум сумму и категорию",
         "expenses.choose_category_to_save": "Выберите категорию, чтобы сохранить этот расход:",
@@ -455,6 +457,7 @@ TRANSLATIONS = {
             "Не вдалося знайти ваш профіль — надішліть /start, щоб зареєструватися."
         ),
         "expense.saved": "✅ Збережено: {amount}{currency} — {category}{description}",
+        "expense.saved_cur": "✅ {amount} {currency} · {category}{description}",
         "expenses.choose_currency": "Оберіть валюту для цієї витрати:",
         "expenses.missing_fields": "Потрібно вказати щонайменше суму та категорію",
         "expenses.choose_category_to_save": "Оберіть категорію, щоб зберегти цю витрату:",

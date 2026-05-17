@@ -52,10 +52,28 @@ function computeStreak(expenses) {
   return streak
 }
 
-function formatTotals(value, fallbackCur) {
-  const entries = Object.entries(value || {})
-  if (entries.length === 0) return `${fallbackCur} 0`
-  return entries.map(([c, v]) => `${c} ${v.toFixed(0)}`).join(' · ')
+// Primary currency (user's default) shown large; any other currencies stacked
+// small underneath. With a single currency this renders exactly like before.
+function StatValue({ totals, primary }) {
+  const entries = Object.entries(totals || {})
+  if (entries.length === 0) {
+    return <p className="stat-value">{primary} 0</p>
+  }
+  entries.sort((a, b) => {
+    if (a[0] === primary) return -1
+    if (b[0] === primary) return 1
+    return b[1] - a[1]
+  })
+  const [mainCur, mainVal] = entries[0]
+  const rest = entries.slice(1)
+  return (
+    <>
+      <p className="stat-value">{mainCur} {mainVal.toFixed(0)}</p>
+      {rest.map(([c, v]) => (
+        <p key={c} className="stat-value-sub">{c} {v.toFixed(0)}</p>
+      ))}
+    </>
+  )
 }
 
 function BudgetBar({ totals, budget, currency, t }) {
@@ -221,21 +239,21 @@ export default function Dashboard({ user }) {
           <div className="stat-row">
             <div className="stat-card">
               <p className="stat-label">{t('dashboard.today')}</p>
-              <p className="stat-value">{formatTotals(stats.today, cur)}</p>
+              <StatValue totals={stats.today} primary={cur} />
               {stats.count_today > 0 && (
                 <p className="stat-extra">{stats.count_today} {txWord(stats.count_today)}</p>
               )}
             </div>
             <div className="stat-card">
               <p className="stat-label">{t('dashboard.thisWeek')}</p>
-              <p className="stat-value">{formatTotals(stats.week, cur)}</p>
+              <StatValue totals={stats.week} primary={cur} />
               {weekCount > 0 && (
                 <p className="stat-extra">{weekCount} {txWord(weekCount)}</p>
               )}
             </div>
             <div className="stat-card">
               <p className="stat-label">{t('dashboard.thisMonth')}</p>
-              <p className="stat-value">{formatTotals(stats.month, cur)}</p>
+              <StatValue totals={stats.month} primary={cur} />
               {monthCount > 0 && (
                 <p className="stat-extra">{monthCount} {txWord(monthCount)}</p>
               )}
