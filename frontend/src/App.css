@@ -148,12 +148,23 @@ html, body, #root {
   justify-content: center;
   box-shadow: var(--shadow-accent);
   cursor: pointer;
-  transition: transform var(--t-base), box-shadow var(--t-base);
+  transition: transform var(--t-base), box-shadow var(--t-base),
+              width var(--t-base), height var(--t-base), opacity var(--t-base);
   z-index: 100;
 }
 .fab:active {
   transform: scale(0.92);
   box-shadow: 0 2px 8px rgba(108, 99, 255, 0.30);
+}
+/* Recedes while scrolling down so it no longer covers list rows on short
+   screens; restored on scroll-up or at the top. */
+.fab.collapsed {
+  width: 44px;
+  height: 44px;
+  opacity: 0.78;
+}
+.fab.collapsed:active {
+  opacity: 1;
 }
 
 .fab-extended {
@@ -174,12 +185,35 @@ html, body, #root {
   font-family: var(--font-body);
   box-shadow: var(--shadow-accent);
   cursor: pointer;
-  transition: transform var(--t-base), box-shadow var(--t-base);
+  overflow: hidden;
+  white-space: nowrap;
+  transition: transform var(--t-base), box-shadow var(--t-base),
+              width var(--t-base), padding var(--t-base),
+              border-radius var(--t-base), gap var(--t-base);
   z-index: 100;
 }
 .fab-extended:active {
   transform: scale(0.96);
   box-shadow: 0 3px 10px rgba(108, 99, 255, 0.30);
+}
+.fab-extended .fab-label {
+  max-width: 140px;
+  opacity: 1;
+  transition: max-width var(--t-base), opacity var(--t-base);
+}
+/* Collapses the pill into a plain circular icon while scrolling down a long
+   list, so it stops covering content on short screens. Expands back on
+   scroll-up or at the top of the page. */
+.fab-extended.collapsed {
+  width: 52px;
+  padding: 0;
+  gap: 0;
+  border-radius: 50%;
+  justify-content: center;
+}
+.fab-extended.collapsed .fab-label {
+  max-width: 0;
+  opacity: 0;
 }
 
 .amount {

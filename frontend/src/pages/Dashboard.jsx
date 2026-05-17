@@ -8,6 +8,7 @@ import ExpenseDetailModal from '../components/ExpenseDetailModal.jsx'
 import Avatar from '../components/Avatar.jsx'
 import UserProfileSheet from '../components/UserProfileSheet.jsx'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
+import { useFabCollapse } from '../useFabCollapse.js'
 
 const TG_PHOTO_URL = window.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url ?? null
 
@@ -260,6 +261,7 @@ export default function Dashboard({ user }) {
   const [detailOpen,  setDetailOpen]  = useState(false)
   const [deleting,    setDeleting]    = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const fabCollapsed = useFabCollapse()
 
   const cur  = user?.currency ?? 'EUR'
   const lang = user?.language ?? 'en'
@@ -302,6 +304,7 @@ export default function Dashboard({ user }) {
 
   const greeting = () => {
     const h = new Date().getHours()
+    if (h < 6) return t('greeting.night')
     if (h < 12) return t('greeting.morning')
     if (h < 18) return t('greeting.afternoon')
     return t('greeting.evening')
@@ -495,8 +498,13 @@ export default function Dashboard({ user }) {
         </>
       )}
 
-      <button className="fab-extended" onClick={() => setShowModal(true)}>
-        <Plus size={20} /> {t('dashboard.add')}
+      <button
+        className={`fab-extended${fabCollapsed ? ' collapsed' : ''}`}
+        onClick={() => setShowModal(true)}
+        aria-label={t('dashboard.add')}
+      >
+        <Plus size={20} />
+        <span className="fab-label">{t('dashboard.add')}</span>
       </button>
 
       {showModal && (
