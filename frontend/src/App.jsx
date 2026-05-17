@@ -38,8 +38,7 @@ export default function App() {
             first_name: 'Dev',
             currency: 'EUR',
             language: 'en',
-            daily_budget: 30,
-            weekly_budget: 150,
+            budgets: { EUR: { daily: 30, weekly: 150 } },
           })
           setLoading(false)
         } else {

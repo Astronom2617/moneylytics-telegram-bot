@@ -41,6 +41,8 @@ const dict = {
     'dashboard.noTx':             'No transactions yet',
     'dashboard.streak':           'day streak',
     'dashboard.streakNone':       'Start your streak',
+    'dashboard.budgets':          'Budgets',
+    'dashboard.spendTrend':       'Last 7 days',
 
     // History
     'history.transactions':       'transactions',
@@ -79,9 +81,11 @@ const dict = {
 
     // Settings
     'settings.budgets':           'Budgets',
+    'settings.budgetsHint':       'Set a limit per currency — leave blank for none.',
     'settings.dailyLimit':        'Daily limit',
     'settings.weeklyLimit':       'Weekly limit',
     'settings.noLimit':           'No limit',
+    'settings.mainCurrency':      'Main currency',
     'settings.currency':          'Currency',
     'settings.language':          'Language',
     'settings.saveChanges':       'Save changes',
@@ -148,6 +152,8 @@ const dict = {
     'dashboard.noTx':             'Операций пока нет',
     'dashboard.streak':           'дней подряд',
     'dashboard.streakNone':       'Начни серию',
+    'dashboard.budgets':          'Бюджеты',
+    'dashboard.spendTrend':       'Последние 7 дней',
 
     'history.transactions':       'операций',
     'history.noExpenses':         'Нет расходов',
@@ -182,9 +188,11 @@ const dict = {
     'common.save':                'Сохранить',
 
     'settings.budgets':           'Бюджеты',
+    'settings.budgetsHint':       'Лимит для каждой валюты — пусто означает без лимита.',
     'settings.dailyLimit':        'Дневной лимит',
     'settings.weeklyLimit':       'Недельный лимит',
     'settings.noLimit':           'Без лимита',
+    'settings.mainCurrency':      'Основная валюта',
     'settings.currency':          'Валюта',
     'settings.language':          'Язык',
     'settings.saveChanges':       'Сохранить',
@@ -249,6 +257,8 @@ const dict = {
     'dashboard.noTx':             'Операцій поки немає',
     'dashboard.streak':           'днів поспіль',
     'dashboard.streakNone':       'Почни серію',
+    'dashboard.budgets':          'Бюджети',
+    'dashboard.spendTrend':       'Останні 7 днів',
 
     'history.transactions':       'операцій',
     'history.noExpenses':         'Немає витрат',
@@ -283,9 +293,11 @@ const dict = {
     'common.save':                'Зберегти',
 
     'settings.budgets':           'Бюджети',
+    'settings.budgetsHint':       'Ліміт для кожної валюти — порожньо означає без ліміту.',
     'settings.dailyLimit':        'Денний ліміт',
     'settings.weeklyLimit':       'Тижневий ліміт',
     'settings.noLimit':           'Без ліміту',
+    'settings.mainCurrency':      'Основна валюта',
     'settings.currency':          'Валюта',
     'settings.language':          'Мова',
     'settings.saveChanges':       'Зберегти',
