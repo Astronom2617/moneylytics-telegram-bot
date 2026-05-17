@@ -15,6 +15,7 @@ const CATEGORIES = [
   { id: 'Shopping',      emoji: '🛍' },
   { id: 'Entertainment', emoji: '🎬' },
   { id: 'Health',        emoji: '💊' },
+  { id: 'Beauty',        emoji: '💅' },
   { id: 'Housing',       emoji: '🏠' },
   { id: 'Utilities',     emoji: '💡' },
   { id: 'Education',     emoji: '📚' },
@@ -58,7 +59,7 @@ function formatDateTime(isoStr, locale) {
 function getCategoryEmoji(cat) {
   const map = {
     Food: '🍕', Transport: '🚌', Shopping: '🛍',
-    Entertainment: '🎬', Health: '💊', Housing: '🏠',
+    Entertainment: '🎬', Health: '💊', Beauty: '💅', Housing: '🏠',
     Utilities: '💡', Education: '📚', Travel: '✈️',
     Gifts: '🎁', Other: '💰',
   }

@@ -11,6 +11,7 @@ const CATEGORIES = [
   { id: 'Shopping',      emoji: '🛍' },
   { id: 'Entertainment', emoji: '🎬' },
   { id: 'Health',        emoji: '💊' },
+  { id: 'Beauty',        emoji: '💅' },
   { id: 'Housing',       emoji: '🏠' },
   { id: 'Utilities',     emoji: '💡' },
   { id: 'Education',     emoji: '📚' },

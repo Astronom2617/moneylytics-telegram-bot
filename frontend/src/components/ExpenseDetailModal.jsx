@@ -4,7 +4,7 @@ import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 
 const EMOJI = {
   Food: '🍕', Transport: '🚌', Shopping: '🛍',
-  Entertainment: '🎬', Health: '💊', Housing: '🏠',
+  Entertainment: '🎬', Health: '💊', Beauty: '💅', Housing: '🏠',
   Utilities: '💡', Education: '📚', Travel: '✈️',
   Gifts: '🎁', Other: '💰',
 }
