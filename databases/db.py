@@ -45,7 +45,13 @@ def _normalize_legacy_categories(conn):
         'cinema': 'entertainment',
         'steam': 'entertainment',
         'bowling': 'entertainment',
-        
+
+        'salon': 'beauty',
+        'beauty': 'beauty',
+        'краса': 'beauty',
+        'салон': 'beauty',
+        'косметика': 'beauty',
+
         'другое': 'other',
     }
 
@@ -59,7 +65,7 @@ def _normalize_legacy_categories(conn):
     UPDATE expenses
     SET category = CASE
         {case_statement}
-        WHEN LOWER(category) IN ('food', 'transport', 'housing', 'entertainment', 'other')
+        WHEN LOWER(category) IN ('food', 'transport', 'housing', 'entertainment', 'beauty', 'other')
             THEN LOWER(category)
         ELSE 'other'
     END

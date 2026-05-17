@@ -2,7 +2,7 @@ from __future__ import annotations
 
 SUPPORTED_LANGUAGES = ("en", "ru", "uk")
 DEFAULT_LANGUAGE = "en"
-CANONICAL_CATEGORIES = ("food", "transport", "housing", "entertainment", "other")
+CANONICAL_CATEGORIES = ("food", "transport", "housing", "entertainment", "beauty", "other")
 
 TRANSLATIONS = {
     "en": {
@@ -19,6 +19,7 @@ TRANSLATIONS = {
         "category.transport": "Transport",
         "category.housing": "Housing",
         "category.entertainment": "Entertainment",
+        "category.beauty": "Beauty",
         "category.other": "Other",
         "settings.choose": "Choose your settings:",
         "settings.currency": "Choose your currency 💲",
@@ -209,6 +210,7 @@ TRANSLATIONS = {
         "category.transport": "Транспорт",
         "category.housing": "Жильё",
         "category.entertainment": "Развлечения",
+        "category.beauty": "Красота",
         "category.other": "Другое",
         "settings.choose": "Выберите настройки:",
         "settings.currency": "Выберите валюту 💲",
@@ -399,6 +401,7 @@ TRANSLATIONS = {
         "category.transport": "Транспорт",
         "category.housing": "Житло",
         "category.entertainment": "Розваги",
+        "category.beauty": "Краса",
         "category.other": "Інше",
         "settings.choose": "Оберіть налаштування:",
         "settings.currency": "Оберіть валюту 💲",
