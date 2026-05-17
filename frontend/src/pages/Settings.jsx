@@ -1,41 +1,84 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Check } from 'lucide-react'
-import { updateUser } from '../api.js'
+import { updateUser, getAlltimeStats } from '../api.js'
 import { useTranslation } from '../i18n.js'
+import { CURRENCIES, currencySymbol } from '../currency.js'
 
-const CURRENCIES = ['EUR', 'USD', 'UAH', 'GBP']
-const LANGUAGES  = [
+const LANGUAGES = [
   { id: 'en', label: '🇬🇧 English' },
   { id: 'ru', label: '🇷🇺 Русский' },
   { id: 'uk', label: '🇺🇦 Українська' },
 ]
 
+// Builds the editable form from stored budgets: every cell is a string so
+// empty means "no limit". Currencies absent from the user's budgets simply
+// start blank.
+function toForm(budgets) {
+  const form = {}
+  for (const [cur, limits] of Object.entries(budgets || {})) {
+    form[cur] = {
+      daily: limits?.daily != null ? String(limits.daily) : '',
+      weekly: limits?.weekly != null ? String(limits.weekly) : '',
+    }
+  }
+  return form
+}
+
 export default function Settings({ user, setUser }) {
-  const [dailyBudget,  setDailyBudget]  = useState(user?.daily_budget  ?? '')
-  const [weeklyBudget, setWeeklyBudget] = useState(user?.weekly_budget ?? '')
-  const [currency,     setCurrency]     = useState(user?.currency  ?? 'EUR')
-  const [language,     setLanguage]     = useState(user?.language  ?? 'en')
-  const [saving,       setSaving]       = useState(false)
-  const [saved,        setSaved]        = useState(false)
+  const [form,     setForm]     = useState(() => toForm(user?.budgets))
+  const [currency, setCurrency] = useState(user?.currency ?? 'EUR')
+  const [language, setLanguage] = useState(user?.language ?? 'en')
+  const [used,     setUsed]     = useState([])
+  const [saving,   setSaving]   = useState(false)
+  const [saved,    setSaved]    = useState(false)
 
   const t = useTranslation(language)
 
+  // Show a budget editor for every currency the user actually spends in,
+  // plus their main currency — and nothing else, so the list stays short.
+  useEffect(() => {
+    getAlltimeStats()
+      .then((s) => setUsed(Object.keys(s?.total_by_currency || {})))
+      .catch(() => setUsed([]))
+  }, [])
+
+  const editable = CURRENCIES.filter(
+    (c) => c === currency || used.includes(c) || form[c],
+  ).sort((a, b) => {
+    if (a === currency) return -1
+    if (b === currency) return 1
+    return CURRENCIES.indexOf(a) - CURRENCIES.indexOf(b)
+  })
+
+  const setLimit = (cur, period, value) => {
+    setForm((prev) => ({
+      ...prev,
+      [cur]: { ...(prev[cur] || { daily: '', weekly: '' }), [period]: value },
+    }))
+  }
+
+  const buildBudgets = () => {
+    const out = {}
+    for (const [cur, limits] of Object.entries(form)) {
+      const entry = {}
+      for (const period of ['daily', 'weekly']) {
+        const raw = limits?.[period]
+        if (raw === '' || raw == null) continue
+        const num = parseFloat(raw)
+        if (!Number.isNaN(num) && num > 0) entry[period] = num
+      }
+      if (Object.keys(entry).length) out[cur] = entry
+    }
+    return out
+  }
+
   const handleSave = async () => {
     setSaving(true)
+    const budgets = buildBudgets()
     try {
-      await updateUser({
-        daily_budget:  dailyBudget  === '' ? null : parseFloat(dailyBudget),
-        weekly_budget: weeklyBudget === '' ? null : parseFloat(weeklyBudget),
-        currency,
-        language,
-      })
-      setUser((prev) => ({
-        ...prev,
-        daily_budget:  dailyBudget  === '' ? null : parseFloat(dailyBudget),
-        weekly_budget: weeklyBudget === '' ? null : parseFloat(weeklyBudget),
-        currency,
-        language,
-      }))
+      const updated = await updateUser({ budgets, currency, language })
+      setUser((prev) => ({ ...prev, ...updated }))
+      setForm(toForm(updated.budgets))
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (e) {
@@ -59,36 +102,62 @@ export default function Settings({ user, setUser }) {
         <h1 className="page-title">{t('page.settings')}</h1>
       </div>
 
-      <p style={sectionLabel}>{t('settings.budgets')} ({currency})</p>
-      <div className="card" style={{ padding: '16px' }}>
-        <label className="form-label">{t('settings.dailyLimit')}</label>
-        <input
-          className="input"
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step="0.01"
-          placeholder={t('settings.noLimit')}
-          value={dailyBudget}
-          onChange={(e) => setDailyBudget(e.target.value)}
-          onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
-          style={{ marginBottom: 14 }}
-        />
-        <label className="form-label">{t('settings.weeklyLimit')}</label>
-        <input
-          className="input"
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step="0.01"
-          placeholder={t('settings.noLimit')}
-          value={weeklyBudget}
-          onChange={(e) => setWeeklyBudget(e.target.value)}
-          onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
-        />
-      </div>
+      <p style={sectionLabel}>{t('settings.budgets')}</p>
+      <p style={{ fontSize: 12, color: 'var(--tg-theme-hint-color)', margin: '-4px 2px 12px' }}>
+        {t('settings.budgetsHint')}
+      </p>
 
-      <p style={{ ...sectionLabel, marginTop: 4 }}>{t('settings.currency')}</p>
+      {editable.map((c) => (
+        <div key={c} className="card" style={{ padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <span style={{
+              fontSize: 13, fontWeight: 700,
+              background: 'var(--accent-light)', color: 'var(--accent-dark)',
+              borderRadius: 8, padding: '3px 10px',
+            }}>
+              {currencySymbol(c)} {c}
+            </span>
+            {c === currency && (
+              <span style={{ fontSize: 11, color: 'var(--tg-theme-hint-color)' }}>
+                {t('settings.mainCurrency')}
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label className="form-label">{t('settings.dailyLimit')}</label>
+              <input
+                className="input"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                placeholder={t('settings.noLimit')}
+                value={form[c]?.daily ?? ''}
+                onChange={(e) => setLimit(c, 'daily', e.target.value)}
+                onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label className="form-label">{t('settings.weeklyLimit')}</label>
+              <input
+                className="input"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                placeholder={t('settings.noLimit')}
+                value={form[c]?.weekly ?? ''}
+                onChange={(e) => setLimit(c, 'weekly', e.target.value)}
+                onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <p style={{ ...sectionLabel, marginTop: 4 }}>{t('settings.mainCurrency')}</p>
       <div className="chips" style={{ marginBottom: 16 }}>
         {CURRENCIES.map((c) => (
           <button
@@ -96,7 +165,7 @@ export default function Settings({ user, setUser }) {
             className={`chip ${currency === c ? 'active' : ''}`}
             onClick={() => setCurrency(c)}
           >
-            {c}
+            {currencySymbol(c)} {c}
           </button>
         ))}
       </div>
