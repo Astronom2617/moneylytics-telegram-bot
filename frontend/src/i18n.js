@@ -13,6 +13,7 @@ const dict = {
     'nav.settings':    'Settings',
 
     // Greetings
+    'greeting.night':     'Good night',
     'greeting.morning':   'Good morning',
     'greeting.afternoon': 'Good afternoon',
     'greeting.evening':   'Good evening',
@@ -79,6 +80,9 @@ const dict = {
     'common.cancel':              'Cancel',
     'common.save':                'Save',
 
+    // Expense
+    'expense.date':               'Date',
+
     // Settings
     'settings.budgets':           'Budgets',
     'settings.budgetsHint':       'Set a limit per currency — leave blank for none.',
@@ -91,6 +95,9 @@ const dict = {
     'settings.saveChanges':       'Save changes',
     'settings.saving':            'Saving…',
     'settings.saved':             'Saved!',
+    'settings.errorDaily':        'Limit must be greater than 0',
+    'settings.errorDailyMax':     "Daily limit can't exceed weekly limit",
+    'settings.errorWeekly':       'Weekly limit must be ≥ daily limit',
     'settings.loggedInAs':        'Logged in as',
     'settings.id':                'ID',
 
@@ -127,6 +134,7 @@ const dict = {
     'nav.analytics':   'Аналитика',
     'nav.settings':    'Настройки',
 
+    'greeting.night':     'Доброй ночи',
     'greeting.morning':   'Доброе утро',
     'greeting.afternoon': 'Добрый день',
     'greeting.evening':   'Добрый вечер',
@@ -188,6 +196,8 @@ const dict = {
     'common.cancel':              'Отмена',
     'common.save':                'Сохранить',
 
+    'expense.date':               'Дата',
+
     'settings.budgets':           'Бюджеты',
     'settings.budgetsHint':       'Лимит для каждой валюты — пусто означает без лимита.',
     'settings.dailyLimit':        'Дневной лимит',
@@ -199,6 +209,9 @@ const dict = {
     'settings.saveChanges':       'Сохранить',
     'settings.saving':            'Сохранение…',
     'settings.saved':             'Сохранено!',
+    'settings.errorDaily':        'Лимит должен быть больше 0',
+    'settings.errorDailyMax':     'Дневной лимит не может быть больше недельного',
+    'settings.errorWeekly':       'Недельный лимит должен быть ≥ дневного',
     'settings.loggedInAs':        'Вы вошли как',
     'settings.id':                'ID',
 
@@ -233,6 +246,7 @@ const dict = {
     'nav.analytics':   'Аналітика',
     'nav.settings':    'Налаштування',
 
+    'greeting.night':     'Доброї ночі',
     'greeting.morning':   'Доброго ранку',
     'greeting.afternoon': 'Доброго дня',
     'greeting.evening':   'Доброго вечора',
@@ -294,6 +308,8 @@ const dict = {
     'common.cancel':              'Скасувати',
     'common.save':                'Зберегти',
 
+    'expense.date':               'Дата',
+
     'settings.budgets':           'Бюджети',
     'settings.budgetsHint':       'Ліміт для кожної валюти — порожньо означає без ліміту.',
     'settings.dailyLimit':        'Денний ліміт',
@@ -305,6 +321,9 @@ const dict = {
     'settings.saveChanges':       'Зберегти',
     'settings.saving':            'Збереження…',
     'settings.saved':             'Збережено!',
+    'settings.errorDaily':        'Ліміт має бути більше 0',
+    'settings.errorDailyMax':     'Денний ліміт не може бути більшим за тижневий',
+    'settings.errorWeekly':       'Тижневий ліміт має бути ≥ денного',
     'settings.loggedInAs':        'Ви увійшли як',
     'settings.id':                'ID',
 

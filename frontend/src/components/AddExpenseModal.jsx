@@ -21,10 +21,17 @@ const CATEGORIES = [
 ]
 
 export default function AddExpenseModal({ user, onClose, onAdded }) {
+  const pad = (n) => String(n).padStart(2, '0')
+  const today = (() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  })()
+
   const [amount,      setAmount]      = useState('')
   const [category,    setCategory]    = useState('Food')
   const [description, setDescription] = useState('')
   const [currency,    setCurrency]    = useState(normalizeCurrency(user?.currency ?? 'EUR'))
+  const [date,        setDate]        = useState(today)
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState(null)
   const t = useTranslation(user?.language)
@@ -40,7 +47,6 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
     setError(null)
     try {
       const now = new Date()
-      const pad = (n) => String(n).padStart(2, '0')
       const client_now = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
 
       const expense = await createExpense({
@@ -49,6 +55,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
         description: description.trim() || undefined,
         currency,
         client_now,
+        expense_date: date,
         timezone_offset: now.getTimezoneOffset(),
       })
       onAdded(expense)
@@ -96,6 +103,16 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
               autoFocus
             />
           </div>
+
+          <label className="form-label">{t('expense.date')}</label>
+          <input
+            className="input"
+            type="date"
+            value={date}
+            max={today}
+            onChange={(e) => setDate(e.target.value || today)}
+            style={{ marginBottom: 16 }}
+          />
 
           <label className="form-label">{t('settings.currency')}</label>
           <div className="chips" style={{ marginBottom: 16 }}>
