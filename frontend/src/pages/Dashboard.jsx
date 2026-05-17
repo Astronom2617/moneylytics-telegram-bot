@@ -17,6 +17,7 @@ const CATEGORY_COLORS = {
   Shopping: '#EC4899',
   Entertainment: '#8B5CF6',
   Health: '#22C55E',
+  Beauty: '#D946EF',
   Housing: '#F97316',
   Utilities: '#06B6D4',
   Education: '#6366F1',
@@ -27,7 +28,7 @@ const CATEGORY_COLORS = {
 
 const CATEGORY_EMOJI = {
   Food: '🍕', Transport: '🚌', Shopping: '🛍',
-  Entertainment: '🎬', Health: '💊', Housing: '🏠',
+  Entertainment: '🎬', Health: '💊', Beauty: '💅', Housing: '🏠',
   Utilities: '💡', Education: '📚', Travel: '✈️',
   Gifts: '🎁', Other: '💰',
 }
