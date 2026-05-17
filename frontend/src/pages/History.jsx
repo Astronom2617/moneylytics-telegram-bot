@@ -6,6 +6,7 @@ import BottomSheet from '../components/BottomSheet.jsx'
 import ExpenseDetailModal from '../components/ExpenseDetailModal.jsx'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 import { currencySymbol } from '../currency.js'
+import { useFabCollapse } from '../useFabCollapse.js'
 
 const PERIOD_IDS = ['today', 'week', 'month', 'all']
 
@@ -180,6 +181,7 @@ export default function History({ user }) {
   const [deletingId,  setDeletingId]  = useState(null)
   const [selected,    setSelected]    = useState(null)
   const [editing,     setEditing]     = useState(null)
+  const fabCollapsed = useFabCollapse()
 
   const lang = user?.language ?? 'en'
   const cur = user?.currency ?? 'EUR'
@@ -337,7 +339,11 @@ export default function History({ user }) {
         ))
       )}
 
-      <button className="fab" onClick={() => setShowModal(true)}>
+      <button
+        className={`fab${fabCollapsed ? ' collapsed' : ''}`}
+        onClick={() => setShowModal(true)}
+        aria-label={t('common.addExpense')}
+      >
         <Plus size={24} />
       </button>
 

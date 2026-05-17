@@ -6,7 +6,7 @@ import io
 import hmac
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from urllib.parse import parse_qsl
 
 import jwt
@@ -145,6 +145,17 @@ def create_expense(body: dict, user_id: int = Depends(get_current_user_id), db: 
                 created_at = created_at - timedelta(minutes=int(tz_offset))
             except (TypeError, ValueError):
                 pass
+
+    # An explicit date (e.g. logging yesterday's expense) overrides only the
+    # calendar day; the time-of-day is kept from client_now so ordering within
+    # that day stays sensible.
+    expense_date = body.get("expense_date")
+    if expense_date:
+        try:
+            d = date.fromisoformat(expense_date)
+            created_at = created_at.replace(year=d.year, month=d.month, day=d.day)
+        except (TypeError, ValueError):
+            pass
 
     expense = Expense(
         user_id=user_id,

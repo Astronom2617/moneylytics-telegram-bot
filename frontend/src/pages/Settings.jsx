@@ -24,6 +24,31 @@ function toForm(budgets) {
   return form
 }
 
+// Per-currency validation. Returns error codes (not messages) so the caller
+// controls when each is shown. Codes: 'pos' = a set limit isn't a positive
+// number; for daily-over-weekly the SAME conflict is reported on both fields
+// in each field's own words — 'lte' under daily ("can't exceed weekly"),
+// 'gte' under weekly ("must be ≥ daily") — so neither field is left
+// unexplained. The comparison only runs once both are valid positives, so
+// 'pos' wins over the cross-field codes.
+function fieldErrors(limits) {
+  const errs = { daily: null, weekly: null }
+  const dRaw = limits?.daily
+  const wRaw = limits?.weekly
+  const dSet = dRaw !== '' && dRaw != null
+  const wSet = wRaw !== '' && wRaw != null
+  const d = dSet ? parseFloat(dRaw) : null
+  const w = wSet ? parseFloat(wRaw) : null
+
+  if (dSet && (Number.isNaN(d) || d <= 0)) errs.daily = 'pos'
+  if (wSet && (Number.isNaN(w) || w <= 0)) errs.weekly = 'pos'
+  if (!errs.daily && !errs.weekly && dSet && wSet && w < d) {
+    errs.daily = 'lte'
+    errs.weekly = 'gte'
+  }
+  return errs
+}
+
 export default function Settings({ user, setUser }) {
   const [form,     setForm]     = useState(() => toForm(user?.budgets))
   const [currency, setCurrency] = useState(user?.currency ?? 'EUR')
@@ -31,6 +56,7 @@ export default function Settings({ user, setUser }) {
   const [used,     setUsed]     = useState([])
   const [saving,   setSaving]   = useState(false)
   const [saved,    setSaved]    = useState(false)
+  const [touched,  setTouched]  = useState({})
 
   const t = useTranslation(language)
 
@@ -55,7 +81,19 @@ export default function Settings({ user, setUser }) {
       ...prev,
       [cur]: { ...(prev[cur] || { daily: '', weekly: '' }), [period]: value },
     }))
+    setTouched((prev) => ({ ...prev, [`${cur}.${period}`]: true }))
   }
+
+  const errorMsg = (code) => {
+    if (code === 'gte') return t('settings.errorWeekly')
+    if (code === 'lte') return t('settings.errorDailyMax')
+    return t('settings.errorDaily')
+  }
+
+  const hasErrors = editable.some((c) => {
+    const e = fieldErrors(form[c])
+    return e.daily || e.weekly
+  })
 
   const buildBudgets = () => {
     const out = {}
@@ -107,7 +145,21 @@ export default function Settings({ user, setUser }) {
         {t('settings.budgetsHint')}
       </p>
 
-      {editable.map((c) => (
+      {editable.map((c) => {
+        const errs = fieldErrors(form[c])
+        const dTouched = touched[`${c}.daily`]
+        const wTouched = touched[`${c}.weekly`]
+        // The daily-over-weekly conflict shows on both fields. Either edit
+        // can introduce it, so each side's message surfaces as soon as
+        // either field has been touched — never an unexplained error.
+        const showDaily = errs.daily &&
+          (dTouched || (errs.daily === 'lte' && wTouched))
+        const showWeekly = errs.weekly &&
+          (wTouched || (errs.weekly === 'gte' && dTouched))
+        const errStyle = {
+          color: 'var(--danger)', fontSize: 12, marginTop: 6,
+        }
+        return (
         <div key={c} className="card" style={{ padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <span style={{
@@ -138,6 +190,9 @@ export default function Settings({ user, setUser }) {
                 onChange={(e) => setLimit(c, 'daily', e.target.value)}
                 onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
               />
+              {showDaily && (
+                <p style={errStyle}>{errorMsg(errs.daily)}</p>
+              )}
             </div>
             <div style={{ flex: 1 }}>
               <label className="form-label">{t('settings.weeklyLimit')}</label>
@@ -152,10 +207,14 @@ export default function Settings({ user, setUser }) {
                 onChange={(e) => setLimit(c, 'weekly', e.target.value)}
                 onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
               />
+              {showWeekly && (
+                <p style={errStyle}>{errorMsg(errs.weekly)}</p>
+              )}
             </div>
           </div>
         </div>
-      ))}
+        )
+      })}
 
       <p style={{ ...sectionLabel, marginTop: 4 }}>{t('settings.mainCurrency')}</p>
       <div className="chips" style={{ marginBottom: 16 }}>
@@ -186,7 +245,7 @@ export default function Settings({ user, setUser }) {
       <button
         className="btn-accent"
         onClick={handleSave}
-        disabled={saving}
+        disabled={saving || hasErrors}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
       >
         {saved ? (
