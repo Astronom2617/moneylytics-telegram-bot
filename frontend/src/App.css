@@ -428,3 +428,57 @@ html, body, #root {
   color: var(--tg-theme-hint-color);
   margin-top: 2px;
 }
+/* Secondary currencies under the primary stat value */
+.stat-card .stat-value-sub {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tg-theme-hint-color);
+  line-height: 1.35;
+  margin-top: 1px;
+  word-break: break-word;
+}
+
+/* Amount field with leading currency symbol */
+.amount-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.amount-symbol {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 22px;
+  text-align: center;
+  transition: color var(--t-base), transform var(--t-fast);
+}
+
+/* "currency is locked" hint in the edit sheet */
+.currency-locked {
+  font-size: 12px;
+  color: var(--tg-theme-hint-color);
+  margin: 0 2px 16px;
+}
+
+/* Currency switcher spacing on Analytics */
+.currency-switch {
+  margin: -4px 0 16px;
+  justify-content: center;
+}
+
+/* Subtle badge for expenses not in the default currency */
+.cur-badge {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.3px;
+}
