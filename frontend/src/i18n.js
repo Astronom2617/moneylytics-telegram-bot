@@ -348,6 +348,30 @@ const dict = {
   },
 }
 
+// Calendar names — months (full) and weekdays (short, Monday-first).
+const MONTHS = {
+  en: ['January', 'February', 'March', 'April', 'May', 'June',
+       'July', 'August', 'September', 'October', 'November', 'December'],
+  ru: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+       'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
+  uk: ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень',
+       'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'],
+}
+
+const WEEKDAYS = {
+  en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  ru: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+  uk: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
+}
+
+export function monthNames(language) {
+  return MONTHS[language] ?? MONTHS.en
+}
+
+export function weekdayNames(language) {
+  return WEEKDAYS[language] ?? WEEKDAYS.en
+}
+
 export function useTranslation(language) {
   const lang = dict[language] ? language : 'en'
   return (key) => dict[lang][key] ?? dict.en[key] ?? key

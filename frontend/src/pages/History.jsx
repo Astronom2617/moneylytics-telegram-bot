@@ -4,6 +4,7 @@ import { getExpenses, deleteExpense, updateExpense } from '../api.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import ExpenseDetailModal from '../components/ExpenseDetailModal.jsx'
+import DatePicker from '../components/DatePicker.jsx'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 import { currencySymbol } from '../currency.js'
 import { useFabCollapse } from '../useFabCollapse.js'
@@ -70,10 +71,16 @@ function getCategoryEmoji(cat) {
 
 function ExpenseEditModal({ expense, language, onClose, onSaved }) {
   const t = useTranslation(language)
+  const pad = (n) => String(n).padStart(2, '0')
+  const today = (() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  })()
   const catKey = expense.category.charAt(0).toUpperCase() + expense.category.slice(1).toLowerCase()
   const [amount,      setAmount]      = useState(String(expense.amount))
   const [category,    setCategory]    = useState(catKey)
   const [description, setDescription] = useState(expense.description || '')
+  const [date,        setDate]        = useState(expense.created_at.slice(0, 10))
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState(null)
 
@@ -90,6 +97,7 @@ function ExpenseEditModal({ expense, language, onClose, onSaved }) {
         amount: amt,
         category,
         description: description.trim() || null,
+        expense_date: date,
       })
       onSaved(updated)
       close()
@@ -136,6 +144,16 @@ function ExpenseEditModal({ expense, language, onClose, onSaved }) {
             />
           </div>
           <p className="currency-locked">🔒 {expense.currency} · {t('history.currencyLocked')}</p>
+
+          <label className="form-label">{t('expense.date')}</label>
+          <div style={{ marginBottom: 16 }}>
+            <DatePicker
+              value={date}
+              onChange={setDate}
+              language={language}
+              maxDate={today}
+            />
+          </div>
 
           <label className="form-label">{t('common.category')}</label>
           <div className="chips" style={{ marginBottom: 16 }}>
