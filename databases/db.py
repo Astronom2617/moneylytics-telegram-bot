@@ -142,6 +142,8 @@ def init_db():
         with engine.begin() as conn:
             if "currency" not in columns:
                 conn.execute(text("ALTER TABLE expenses ADD COLUMN currency VARCHAR(20) DEFAULT 'EUR'"))
+            if "date_edited" not in columns:
+                conn.execute(text("ALTER TABLE expenses ADD COLUMN date_edited BOOLEAN DEFAULT FALSE"))
             conn.execute(text(
                 """
                 UPDATE expenses

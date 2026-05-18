@@ -332,9 +332,11 @@ export default function History({ user }) {
                           {e.description}
                         </p>
                       )}
-                      <p style={{ fontSize: 12, color: 'var(--tg-theme-hint-color)', marginTop: 1 }}>
-                        {formatTime(e.created_at, locale)}
-                      </p>
+                      {!e.date_edited && (
+                        <p style={{ fontSize: 12, color: 'var(--tg-theme-hint-color)', marginTop: 1 }}>
+                          {formatTime(e.created_at, locale)}
+                        </p>
+                      )}
                     </div>
 
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>

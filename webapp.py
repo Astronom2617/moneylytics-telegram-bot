@@ -183,6 +183,7 @@ def update_expense(
         try:
             d = datetime.strptime(body["expense_date"], "%Y-%m-%d")
             expense.created_at = d.replace(hour=0, minute=0, second=0, microsecond=0)
+            expense.date_edited = True
         except (TypeError, ValueError):
             pass
     db.commit()
@@ -387,7 +388,8 @@ def _user_dict(u):
 
 def _expense_dict(e):
     return {"id": e.id, "amount": e.amount, "category": e.category, "currency": e.currency,
-            "description": e.description, "created_at": e.created_at.isoformat()}
+            "description": e.description, "created_at": e.created_at.isoformat(),
+            "date_edited": bool(e.date_edited)}
 
 
 app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
