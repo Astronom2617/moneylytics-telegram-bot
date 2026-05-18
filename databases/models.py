@@ -20,6 +20,8 @@ class User(Base):
     weekly_over_limit_count: Mapped[int] = mapped_column(Integer, default=0)
     daily_over_limit_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     weekly_over_limit_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Fernet-encrypted Monobank personal token. Never stored or logged raw.
+    mono_token: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     def budget_for(self, currency: str | None, period: str) -> float | None:
         """Limit for a currency/period ('daily'|'weekly'), or None if unset."""
@@ -74,6 +76,9 @@ class Expense(Base):
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     date_edited: Mapped[bool] = mapped_column(default=False)
+    # Monobank transaction id — set only for auto-imported expenses. The
+    # unique constraint makes webhook delivery idempotent (Mono retries).
+    mono_tx_id: Mapped[str | None] = mapped_column(String(100), nullable=True, unique=True)
 
 class FeedbackReport(Base):
     __tablename__ = 'feedback_reports'

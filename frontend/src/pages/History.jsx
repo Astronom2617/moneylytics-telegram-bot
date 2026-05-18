@@ -320,7 +320,9 @@ export default function History({ user }) {
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 15, fontWeight: 500 }}>{translateCategory(e.category, lang)}</p>
+                      <p style={{ fontSize: 15, fontWeight: 500 }}>
+                        {e.mono_tx_id && '🏦 '}{translateCategory(e.category, lang)}
+                      </p>
                       {e.description && (
                         <p style={{
                           fontSize: 13,

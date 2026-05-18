@@ -50,3 +50,7 @@ export const exportCSV = async () => {
 
 export const getUser    = ()     => request('GET', '/api/user')
 export const updateUser = (data) => request('PUT', '/api/user', data)
+
+export const setupMono     = (token) => request('POST', '/api/mono/setup', { token })
+export const removeMono    = ()      => request('DELETE', '/api/mono/setup')
+export const getMonoStatus = ()      => request('GET', '/api/mono/status')

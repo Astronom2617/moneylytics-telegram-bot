@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Check } from 'lucide-react'
-import { updateUser, getAlltimeStats } from '../api.js'
+import { updateUser, getAlltimeStats, setupMono, removeMono, getMonoStatus } from '../api.js'
 import { useTranslation } from '../i18n.js'
 import { CURRENCIES, currencySymbol } from '../currency.js'
 
@@ -58,7 +58,52 @@ export default function Settings({ user, setUser }) {
   const [saved,    setSaved]    = useState(false)
   const [touched,  setTouched]  = useState({})
 
+  const [monoConnected, setMonoConnected] = useState(null)
+  const [monoToken,     setMonoToken]     = useState('')
+  const [monoBusy,      setMonoBusy]      = useState(false)
+  const [monoError,     setMonoError]     = useState(null)
+
   const t = useTranslation(language)
+
+  useEffect(() => {
+    getMonoStatus()
+      .then((s) => setMonoConnected(!!s?.connected))
+      .catch(() => setMonoConnected(false))
+  }, [])
+
+  const handleMonoConnect = async () => {
+    const token = monoToken.trim()
+    if (!token) return
+    setMonoBusy(true)
+    setMonoError(null)
+    try {
+      const res = await setupMono(token)
+      if (res?.ok) {
+        setMonoConnected(true)
+        setMonoToken('')
+      } else {
+        setMonoError(res?.error || t('settings.monoConnect'))
+      }
+    } catch (e) {
+      setMonoError(t('settings.monoConnect'))
+    } finally {
+      setMonoBusy(false)
+    }
+  }
+
+  const handleMonoDisconnect = async () => {
+    if (!window.confirm(t('settings.monoDisconnectConfirm'))) return
+    setMonoBusy(true)
+    setMonoError(null)
+    try {
+      await removeMono()
+      setMonoConnected(false)
+    } catch (e) {
+      setMonoError(t('settings.monoDisconnect'))
+    } finally {
+      setMonoBusy(false)
+    }
+  }
 
   // Show a budget editor for every currency the user actually spends in,
   // plus their main currency — and nothing else, so the list stays short.
@@ -240,6 +285,65 @@ export default function Settings({ user, setUser }) {
             {l.label}
           </button>
         ))}
+      </div>
+
+      <p style={{ ...sectionLabel, marginTop: 4 }}>{t('settings.mono')}</p>
+      <div className="card" style={{ padding: 16, marginBottom: 24 }}>
+        {monoConnected ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                width: 9, height: 9, borderRadius: '50%',
+                background: '#28a745', flexShrink: 0,
+              }} />
+              <span style={{ fontSize: 14, fontWeight: 500 }}>
+                {t('settings.monoConnected')}
+              </span>
+            </div>
+            <button
+              className="btn-danger"
+              onClick={handleMonoDisconnect}
+              disabled={monoBusy}
+              style={{ marginTop: 14 }}
+            >
+              {t('settings.monoDisconnect')}
+            </button>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--tg-theme-hint-color)', marginBottom: 12 }}>
+              {t('settings.monoHint')}
+            </p>
+            <input
+              className="input"
+              type="password"
+              placeholder={t('settings.monoTokenPlaceholder')}
+              value={monoToken}
+              onChange={(e) => setMonoToken(e.target.value)}
+              autoComplete="off"
+              style={{ marginBottom: 8 }}
+            />
+            <a
+              href="https://monobank.ua/d/api"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 12, color: 'var(--accent-dark)', textDecoration: 'none' }}
+            >
+              {t('settings.monoApiLink')}
+            </a>
+            {monoError && (
+              <p style={{ color: 'var(--danger)', fontSize: 12, marginTop: 10 }}>{monoError}</p>
+            )}
+            <button
+              className="btn-accent"
+              onClick={handleMonoConnect}
+              disabled={monoBusy || !monoToken.trim()}
+              style={{ marginTop: 14 }}
+            >
+              {t('settings.monoConnect')}
+            </button>
+          </>
+        )}
       </div>
 
       <button
