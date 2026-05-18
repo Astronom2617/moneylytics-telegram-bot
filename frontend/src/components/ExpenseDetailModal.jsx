@@ -76,6 +76,15 @@ export default function ExpenseDetailModal({ expense, language, onClose, onDelet
                 </div>
               </>
             )}
+            {expense.mono_tx_id && (
+              <>
+                <div style={{ height: 1, background: 'var(--tg-theme-bg-color)', margin: '10px 0' }} />
+                <div className="detail-row">
+                  <span className="detail-label">{t('settings.monoSource')}</span>
+                  <span className="detail-value">🏦</span>
+                </div>
+              </>
+            )}
           </div>
 
           {onEdit && (

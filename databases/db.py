@@ -134,6 +134,8 @@ def init_db():
                 conn.execute(text("ALTER TABLE users ADD COLUMN daily_over_limit_date DATE"))
             if "weekly_over_limit_date" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN weekly_over_limit_date DATE"))
+            if "mono_token" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN mono_token VARCHAR(500)"))
             conn.execute(text("UPDATE users SET language = 'en' WHERE language IS NULL OR language = ''"))
             _migrate_budgets_to_json(conn, columns)
 
@@ -144,6 +146,15 @@ def init_db():
                 conn.execute(text("ALTER TABLE expenses ADD COLUMN currency VARCHAR(20) DEFAULT 'EUR'"))
             if "date_edited" not in columns:
                 conn.execute(text("ALTER TABLE expenses ADD COLUMN date_edited BOOLEAN DEFAULT FALSE"))
+            if "mono_tx_id" not in columns:
+                # SQLite rejects an inline UNIQUE on ADD COLUMN, so the column
+                # is added plain and uniqueness enforced via a unique index —
+                # works on Postgres and SQLite and still allows many NULLs.
+                conn.execute(text("ALTER TABLE expenses ADD COLUMN mono_tx_id VARCHAR(100)"))
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_expenses_mono_tx_id "
+                "ON expenses (mono_tx_id)"
+            ))
             conn.execute(text(
                 """
                 UPDATE expenses
