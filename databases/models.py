@@ -73,6 +73,7 @@ class Expense(Base):
     currency: Mapped[str] = mapped_column(String(20), default="EUR", nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    date_edited: Mapped[bool] = mapped_column(default=False)
 
 class FeedbackReport(Base):
     __tablename__ = 'feedback_reports'

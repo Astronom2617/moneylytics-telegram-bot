@@ -21,6 +21,12 @@ function formatDateTime(isoStr, locale) {
   }) + ' · ' + d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 }
 
+function formatDateOnly(isoStr, locale) {
+  return new Date(isoStr).toLocaleDateString(locale, {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  })
+}
+
 export default function ExpenseDetailModal({ expense, language, onClose, onDelete, onEdit, deleting }) {
   const t = useTranslation(language)
   const locale = localeFor(language)
@@ -59,7 +65,7 @@ export default function ExpenseDetailModal({ expense, language, onClose, onDelet
           <div className="card" style={{ padding: '14px 16px', marginBottom: 12 }}>
             <div className="detail-row">
               <span className="detail-label">{t('history.dateTime')}</span>
-              <span className="detail-value">{formatDateTime(expense.created_at, locale)}</span>
+              <span className="detail-value">{expense.date_edited ? formatDateOnly(expense.created_at, locale) : formatDateTime(expense.created_at, locale)}</span>
             </div>
             {expense.description && (
               <>
