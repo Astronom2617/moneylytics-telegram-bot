@@ -346,7 +346,7 @@ export default function History({ user }) {
                       <p className="amount" style={{ fontSize: 16, fontWeight: 500 }}>
                         {e.currency} {e.amount.toFixed(2)}
                       </p>
-                      {e.currency && e.currency !== cur && (
+                      {e.currency && (
                         <span className="cur-badge">{currencySymbol(e.currency)} {e.currency}</span>
                       )}
                     </div>

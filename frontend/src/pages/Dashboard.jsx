@@ -84,12 +84,7 @@ function computeStreak(expenses) {
 function StatValue({ totals, primary }) {
   const entries = Object.entries(totals || {})
   if (entries.length === 0) {
-    return (
-      <>
-        <p className="stat-value">{currencySymbol(primary)}0</p>
-        <span className="cur-badge">{currencySymbol(primary)} {primary}</span>
-      </>
-    )
+    return <p className="stat-value">{currencySymbol(primary)}0</p>
   }
   entries.sort((a, b) => {
     if (a[0] === primary) return -1
@@ -101,7 +96,6 @@ function StatValue({ totals, primary }) {
   return (
     <>
       <p className="stat-value">{currencySymbol(mainCur)}{mainVal.toFixed(0)}</p>
-      <span className="cur-badge">{currencySymbol(mainCur)} {mainCur}</span>
       {rest.length > 0 && (
         <p className="stat-value-sub">
           {rest.map(([c, v]) => `${currencySymbol(c)}${v.toFixed(0)}`).join(' · ')}

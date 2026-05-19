@@ -59,6 +59,7 @@ export default function Analytics({ user }) {
   }
 
   const dailyData = (stats?.daily_last_7 || []).map((d) => ({ ...d, label: formatDay(d.date) }))
+  const categoryTotal = (stats?.by_category || []).reduce((s, x) => s + x.total, 0)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -183,31 +184,51 @@ export default function Analytics({ user }) {
             {t('analytics.byCategory')}
           </p>
           <div className="card">
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={stats.by_category}
-                  dataKey="total"
-                  nameKey="category"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={0}
-                  stroke="none"
-                >
-                  {stats.by_category.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip currency={activeCur} translateName={(n) => translateCategory(n, lang)} />} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div style={{ position: 'relative' }}>
+              <ResponsiveContainer width="100%" height={230}>
+                <PieChart>
+                  <Pie
+                    data={stats.by_category}
+                    dataKey="total"
+                    nameKey="category"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={64}
+                    outerRadius={92}
+                    paddingAngle={2}
+                    cornerRadius={6}
+                    stroke="var(--tg-theme-secondary-bg-color)"
+                    strokeWidth={3}
+                    animationDuration={600}
+                  >
+                    {stats.by_category.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip currency={activeCur} translateName={(n) => translateCategory(n, lang)} />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                pointerEvents: 'none',
+              }}>
+                <span style={{
+                  fontSize: 11, color: 'var(--tg-theme-hint-color)',
+                  textTransform: 'uppercase', letterSpacing: '0.5px',
+                }}>
+                  {t('profile.totalSpent')}
+                </span>
+                <span className="amount" style={{ fontSize: 19, fontWeight: 600, marginTop: 3 }}>
+                  {activeCur} {categoryTotal.toFixed(0)}
+                </span>
+              </div>
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
               {stats.by_category.map((item, i) => {
-                const total = stats.by_category.reduce((s, x) => s + x.total, 0)
-                const pct = ((item.total / total) * 100).toFixed(0)
+                const pct = ((item.total / categoryTotal) * 100).toFixed(0)
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 10, height: 10, borderRadius: 3, background: COLORS[i % COLORS.length], flexShrink: 0 }} />
@@ -231,9 +252,20 @@ export default function Analytics({ user }) {
             {t('analytics.last7Days')}
           </p>
           <div className="card">
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={dailyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--tg-theme-bg-color)" />
+            <ResponsiveContainer width="100%" height={190}>
+              <BarChart data={dailyData} margin={{ top: 4, right: 0, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6C63FF" />
+                    <stop offset="100%" stopColor="#3B8BFF" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  vertical={false}
+                  strokeDasharray="4 4"
+                  stroke="var(--tg-theme-hint-color)"
+                  strokeOpacity={0.18}
+                />
                 <XAxis
                   dataKey="label"
                   tick={{ fontSize: 11, fill: 'var(--tg-theme-hint-color)', fontFamily: 'var(--font-body)' }}
@@ -246,7 +278,14 @@ export default function Analytics({ user }) {
                   tickLine={false}
                 />
                 <Tooltip content={<CustomTooltip currency={activeCur} />} cursor={{ fill: 'var(--accent-light)' }} />
-                <Bar dataKey="total" name={t('dashboard.spent')} fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="total"
+                  name={t('dashboard.spent')}
+                  fill="url(#barGrad)"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={30}
+                  animationDuration={600}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
