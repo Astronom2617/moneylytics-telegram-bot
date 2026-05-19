@@ -244,8 +244,14 @@ function Sparkline({ byCur, primary, t, locale }) {
       <div className="card" style={{ padding: '10px 8px 4px' }}>
         <ResponsiveContainer width="100%" height={80}>
           <BarChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+            <defs>
+              <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#6C63FF" />
+                <stop offset="100%" stopColor="#3B8BFF" />
+              </linearGradient>
+            </defs>
             <Tooltip content={<SparkTooltip symbol={currencySymbol(active)} />} cursor={{ fill: 'var(--accent-light)' }} />
-            <Bar dataKey="total" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="total" fill="url(#sparkGrad)" radius={[4, 4, 0, 0]} maxBarSize={22} animationDuration={600} />
           </BarChart>
         </ResponsiveContainer>
       </div>

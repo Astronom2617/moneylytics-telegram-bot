@@ -193,12 +193,11 @@ export default function Analytics({ user }) {
                     nameKey="category"
                     cx="50%"
                     cy="50%"
-                    innerRadius={64}
-                    outerRadius={92}
-                    paddingAngle={2}
-                    cornerRadius={6}
+                    innerRadius={60}
+                    outerRadius={95}
+                    paddingAngle={0}
                     stroke="var(--tg-theme-secondary-bg-color)"
-                    strokeWidth={3}
+                    strokeWidth={2}
                     animationDuration={600}
                   >
                     {stats.by_category.map((_, i) => (
@@ -282,8 +281,8 @@ export default function Analytics({ user }) {
                   dataKey="total"
                   name={t('dashboard.spent')}
                   fill="url(#barGrad)"
-                  radius={[6, 6, 0, 0]}
-                  maxBarSize={30}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={32}
                   animationDuration={600}
                 />
               </BarChart>
