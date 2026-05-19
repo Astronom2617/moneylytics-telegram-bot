@@ -1,11 +1,13 @@
 """Moneylytics — Telegram Mini App backend. Shares the bot's sync SQLAlchemy layer."""
 
 import os
+import sys
 import csv
 import io
 import hmac
 import hashlib
 import json
+import logging
 import time
 import urllib.request
 import urllib.error
@@ -28,6 +30,15 @@ load_dotenv()
 
 from databases.db import get_session, init_db
 from databases.models import User, Expense
+
+
+logger = logging.getLogger("moneylytics.mono")
+if not logger.handlers:
+    _h = logging.StreamHandler(sys.stdout)
+    _h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+    logger.addHandler(_h)
+logger.setLevel(logging.INFO)
+logger.propagate = False
 
 
 BOT_TOKEN  = os.environ["BOT_TOKEN"]
@@ -137,10 +148,25 @@ def _user_own_ibans(user) -> set[str]:
     try:
         token = decrypt_token(user.mono_token)
         info = _mono_request("/personal/client-info", token)
-    except (InvalidToken, urllib.error.URLError, ValueError, OSError):
+    except (InvalidToken, urllib.error.URLError, ValueError, OSError) as exc:
+        # client-info is rate-limited to 1/60s per token; a 429 here means we
+        # fall back to any stale set rather than dropping the filter entirely.
+        logger.warning("mono client-info fetch failed for user=%s: %r", user.id, exc)
         return cached[0] if cached else set()
-    ibans = {acc.get("iban") for acc in info.get("accounts", []) if acc.get("iban")}
+    # Normalise IBANs (strip whitespace, upper-case) so webhook counterIban
+    # values compare equal, and include jars — money moved to your own jar is
+    # still a self-transfer, not spending.
+    ibans: set[str] = set()
+    for acc in info.get("accounts", []):
+        v = (acc.get("iban") or "").strip().upper()
+        if v:
+            ibans.add(v)
+    for jar in info.get("jars", []):
+        v = (jar.get("iban") or "").strip().upper()
+        if v:
+            ibans.add(v)
     _mono_iban_cache[user.id] = (ibans, now)
+    logger.info("mono own ibans for user=%s: %r", user.id, ibans)
     return ibans
 
 
@@ -586,15 +612,30 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
             return {"status": "no_user"}
 
         # Skip the user's own transfers between their accounts/jars — these
-        # aren't spending, just money moving around.
-        counter_iban = item.get("counterIban")
-        if counter_iban and counter_iban in _user_own_ibans(user):
+        # aren't spending, just money moving around. counterIban is normalised
+        # the same way as the cached own-IBAN set (strip + upper) because
+        # Monobank is inconsistent about casing/whitespace here.
+        counter_iban = (item.get("counterIban") or "").strip().upper()
+        counter_edrpou = (item.get("counterEdrpou") or "").strip()
+        mcc = item.get("mcc")
+        own_ibans = _user_own_ibans(user)
+        logger.info(
+            "mono webhook tx=%s user=%s mcc=%s counterIban=%r counterEdrpou=%r "
+            "counterName=%r own_ibans=%r",
+            tx_id, user.id, mcc, counter_iban, counter_edrpou,
+            item.get("counterName"), own_ibans,
+        )
+        if counter_iban and counter_iban in own_ibans:
+            logger.info("mono webhook tx=%s skipped: own transfer", tx_id)
             return {"status": "own_transfer"}
 
         currency = MONO_CURRENCY.get(item.get("currencyCode"), "UAH")
-        category = MONO_MCC_CATEGORY.get(item.get("mcc"), "other")
+        category = MONO_MCC_CATEGORY.get(mcc, "other")
         # Monobank's `time` is a unix timestamp in UTC — keep it naive UTC.
         created_at = datetime.utcfromtimestamp(item.get("time")) if item.get("time") else datetime.utcnow()
+        # Description comes ONLY from Monobank's own description/comment fields.
+        # counterName (recipient name) must never leak in here — it has its own
+        # dedicated column (mono_counter_name) below.
         description = item.get("description") or item.get("comment") or ""
         counter_name = item.get("counterName")
 
