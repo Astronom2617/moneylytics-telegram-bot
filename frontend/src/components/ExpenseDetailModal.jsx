@@ -6,7 +6,7 @@ const EMOJI = {
   Food: '🍕', Transport: '🚌', Shopping: '🛍',
   Entertainment: '🎬', Health: '💊', Beauty: '💅', Housing: '🏠',
   Utilities: '💡', Education: '📚', Travel: '✈️',
-  Gifts: '🎁', Other: '💰',
+  Gifts: '🎁', Transfer: '💸', Other: '💰',
 }
 
 function getCategoryEmoji(cat) {
@@ -76,11 +76,15 @@ export default function ExpenseDetailModal({ expense, language, onClose, onDelet
                 </div>
               </>
             )}
-            {expense.mono_tx_id && expense.mono_counter_name && (
+            {expense.mono_counter_name && (
               <>
                 <div style={{ height: 1, background: 'var(--tg-theme-bg-color)', margin: '10px 0' }} />
                 <div className="detail-row">
-                  <span className="detail-label">{t('expense.recipient')}</span>
+                  <span className="detail-label">
+                    {expense.category?.toLowerCase() === 'transfer'
+                      ? t('expense.recipient')
+                      : t('expense.merchant')}
+                  </span>
                   <span className="detail-value">{expense.mono_counter_name}</span>
                 </div>
               </>

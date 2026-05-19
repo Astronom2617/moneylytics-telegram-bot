@@ -193,7 +193,8 @@ export default function Analytics({ user }) {
                   cy="50%"
                   innerRadius={55}
                   outerRadius={85}
-                  paddingAngle={3}
+                  paddingAngle={0}
+                  stroke="none"
                 >
                   {stats.by_category.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />

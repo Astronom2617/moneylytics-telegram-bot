@@ -83,6 +83,7 @@ const dict = {
     // Expense
     'expense.date':               'Date',
     'expense.recipient':          'Recipient',
+    'expense.merchant':           'Merchant',
 
     // Settings
     'settings.budgets':           'Budgets',
@@ -214,6 +215,7 @@ const dict = {
 
     'expense.date':               'Дата',
     'expense.recipient':          'Получатель',
+    'expense.merchant':           'Магазин',
 
     'settings.budgets':           'Бюджеты',
     'settings.budgetsHint':       'Лимит для каждой валюты — пусто означает без лимита.',
@@ -342,6 +344,7 @@ const dict = {
 
     'expense.date':               'Дата',
     'expense.recipient':          'Одержувач',
+    'expense.merchant':           'Магазин',
 
     'settings.budgets':           'Бюджети',
     'settings.budgetsHint':       'Ліміт для кожної валюти — порожньо означає без ліміту.',

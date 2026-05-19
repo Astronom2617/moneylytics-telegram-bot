@@ -31,6 +31,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
 
   const [amount,      setAmount]      = useState('')
   const [category,    setCategory]    = useState('Food')
+  const [recipient,   setRecipient]   = useState('')
   const [description, setDescription] = useState('')
   const [currency,    setCurrency]    = useState(normalizeCurrency(user?.currency ?? 'EUR'))
   const [date,        setDate]        = useState(today)
@@ -55,6 +56,7 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
         amount: amt,
         category,
         description: description.trim() || undefined,
+        recipient: category === 'Transfer' ? (recipient.trim() || undefined) : undefined,
         currency,
         client_now,
         expense_date: date,
@@ -142,6 +144,20 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
               </button>
             ))}
           </div>
+
+          {category === 'Transfer' && (
+            <>
+              <label className="form-label">{t('expense.recipient')}</label>
+              <input
+                className="input"
+                type="text"
+                placeholder={t('expense.recipient')}
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                style={{ marginBottom: 16 }}
+              />
+            </>
+          )}
 
           <label className="form-label">{t('common.noteOptional')}</label>
           <input

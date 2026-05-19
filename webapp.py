@@ -11,7 +11,7 @@ import logging
 import time
 import urllib.request
 import urllib.error
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dtime
 from urllib.parse import parse_qsl
 
 import jwt
@@ -305,13 +305,31 @@ def create_expense(body: dict, user_id: int = Depends(get_current_user_id), db: 
             except (TypeError, ValueError):
                 pass
 
+    # If the user back-dated the entry via the date picker, that date wins
+    # over "now". Anchor it at local noon so the day can't slip across a
+    # timezone boundary, and flag it so the UI hides the (synthetic) time.
+    date_edited = False
+    expense_date = body.get("expense_date")
+    if expense_date:
+        try:
+            picked = datetime.strptime(expense_date, "%Y-%m-%d").date()
+            if picked != created_at.date():
+                created_at = datetime.combine(picked, dtime(12, 0, 0))
+                date_edited = True
+        except (TypeError, ValueError):
+            pass
+
+    category = body.get("category", "other").lower()
+    recipient = (body.get("recipient") or "").strip()
     expense = Expense(
         user_id=user_id,
         amount=float(amount),
-        category=body.get("category", "other").lower(),
+        category=category,
         currency=currency,
         description=body.get("description"),
         created_at=created_at,
+        date_edited=date_edited,
+        mono_counter_name=(recipient or None) if category == "transfer" else None,
     )
     db.add(expense)
     db.commit()
@@ -640,13 +658,17 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
         counter_edrpou = (item.get("counterEdrpou") or "").strip()
         counter_name = (item.get("counterName") or "").strip()
         mcc = item.get("mcc")
-        raw_desc = (item.get("description") or item.get("comment") or "").strip()
+        # Monobank's auto `description` (merchant name / self-transfer phrase /
+        # P2P recipient name) is distinct from `comment`, the note the user
+        # types when sending money. They serve different roles below.
+        mono_desc = (item.get("description") or "").strip()
+        comment = (item.get("comment") or "").strip()
         own_ibans = _user_own_ibans(user)
         logger.info(
             "mono webhook tx=%s user=%s mcc=%s counterIban=%r counterEdrpou=%r "
-            "counterName=%r description=%r own_ibans=%r",
+            "counterName=%r description=%r comment=%r own_ibans=%r",
             tx_id, user.id, mcc, counter_iban, counter_edrpou,
-            counter_name, raw_desc, own_ibans,
+            counter_name, mono_desc, comment, own_ibans,
         )
 
         # Monobank tags money transfers (not retail purchases) with MCC 4829.
@@ -662,7 +684,7 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
         #     картку ...", "Між своїми", etc). A real P2P to another
         #     person also has an empty counterName, but its description
         #     is the recipient's name, not one of these phrases.
-        desc_lower = raw_desc.lower()
+        desc_lower = mono_desc.lower()
         is_own_phrase = any(
             desc_lower.startswith(p) for p in _MONO_OWN_TRANSFER_PHRASES
         )
@@ -676,18 +698,19 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
         currency = MONO_CURRENCY.get(item.get("currencyCode"), "UAH")
         # Monobank's `time` is a unix timestamp in UTC — keep it naive UTC.
         created_at = datetime.utcfromtimestamp(item.get("time")) if item.get("time") else datetime.utcnow()
-        # Any non-skipped MCC 4829 is a P2P transfer to another person.
-        # The recipient name is in counterName or, when Monobank leaves
-        # that empty, in the free-form description. Keep the recipient
-        # only in its dedicated column — never in the expense description.
+        # The expense description is always the user-written `comment` when
+        # present. For a (non-skipped) MCC 4829 P2P transfer the recipient
+        # is counterName, or Monobank's auto description when that's empty,
+        # and is kept only in its dedicated column. For everything else the
+        # comment falls back to Monobank's merchant description.
         if is_transfer:
             category = "transfer"
-            counter_name = counter_name or raw_desc or None
-            description = ""
+            counter_name = counter_name or mono_desc or None
+            description = comment
         else:
             category = MONO_MCC_CATEGORY.get(mcc, "other")
             counter_name = counter_name or None
-            description = raw_desc
+            description = comment or mono_desc
 
         expense = Expense(
             user_id=user.id,
