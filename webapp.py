@@ -70,6 +70,11 @@ _MONO_MCC_GROUPS = {
 }
 MONO_MCC_CATEGORY = {mcc: cat for cat, mccs in _MONO_MCC_GROUPS.items() for mcc in mccs}
 
+# Monobank stamps money transfers (card-to-card, "Між своїми", P2P to a
+# person) with MCC 4829 — never a retail purchase. Used to tell transfers
+# apart from spending in the webhook.
+_MONO_TRANSFER_MCC = 4829
+
 # account id → user id, so the webhook avoids a Monobank API call per delivery.
 # Monobank rate-limits client-info to once per 60s per token, so this matters.
 _mono_account_cache: dict[str, int] = {}
@@ -611,21 +616,36 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
         if not user:
             return {"status": "no_user"}
 
-        # Skip the user's own transfers between their accounts/jars — these
-        # aren't spending, just money moving around. counterIban is normalised
-        # the same way as the cached own-IBAN set (strip + upper) because
-        # Monobank is inconsistent about casing/whitespace here.
         counter_iban = (item.get("counterIban") or "").strip().upper()
         counter_edrpou = (item.get("counterEdrpou") or "").strip()
+        counter_name = (item.get("counterName") or "").strip()
         mcc = item.get("mcc")
+        raw_desc = (item.get("description") or item.get("comment") or "").strip()
         own_ibans = _user_own_ibans(user)
         logger.info(
             "mono webhook tx=%s user=%s mcc=%s counterIban=%r counterEdrpou=%r "
-            "counterName=%r own_ibans=%r",
+            "counterName=%r description=%r own_ibans=%r",
             tx_id, user.id, mcc, counter_iban, counter_edrpou,
-            item.get("counterName"), own_ibans,
+            counter_name, raw_desc, own_ibans,
         )
-        if counter_iban and counter_iban in own_ibans:
+
+        # Monobank tags money transfers (not retail purchases) with MCC 4829.
+        # A non-empty counterEdrpou means the counterparty is a registered
+        # business, so it's a real payment, not a personal transfer.
+        is_transfer = mcc == _MONO_TRANSFER_MCC and not counter_edrpou
+
+        # BUG 1 — skip the user's own movements between their own
+        # accounts/jars (not spending). Two real shapes, confirmed from
+        # production webhook logs:
+        #   * IBAN transfer between own accounts -> counterIban is set and
+        #     matches one of the user's own IBANs.
+        #   * Monobank "Між своїми" book transfer -> arrives as MCC 4829
+        #     with counterIban, counterEdrpou AND counterName all empty
+        #     (there is genuinely no counterparty data to match on).
+        own_transfer = (counter_iban and counter_iban in own_ibans) or (
+            is_transfer and not counter_iban and not counter_name
+        )
+        if own_transfer:
             logger.info("mono webhook tx=%s skipped: own transfer", tx_id)
             return {"status": "own_transfer"}
 
@@ -633,11 +653,14 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
         category = MONO_MCC_CATEGORY.get(mcc, "other")
         # Monobank's `time` is a unix timestamp in UTC — keep it naive UTC.
         created_at = datetime.utcfromtimestamp(item.get("time")) if item.get("time") else datetime.utcnow()
-        # Description comes ONLY from Monobank's own description/comment fields.
-        # counterName (recipient name) must never leak in here — it has its own
-        # dedicated column (mono_counter_name) below.
-        description = item.get("description") or item.get("comment") or ""
-        counter_name = item.get("counterName")
+        # BUG 2 — for a P2P transfer to an individual (MCC 4829, no
+        # counterEdrpou) Monobank repeats the recipient's name in the
+        # free-form `description`, which then surfaced as the expense note.
+        # Drop the description for these; the name lives only in its own
+        # dedicated column (mono_counter_name). Retail purchases keep their
+        # description because they aren't transfers (is_transfer is False).
+        description = "" if (is_transfer and counter_name) else raw_desc
+        counter_name = counter_name or None
 
         expense = Expense(
             user_id=user.id,
