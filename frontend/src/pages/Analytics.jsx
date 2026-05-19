@@ -70,6 +70,13 @@ export default function Analytics({ user }) {
 
   useEffect(() => { load() }, [load])
 
+  // Each period (Today / Week / Month) has its own set of currencies. Clear
+  // the active selection whenever the period tab changes so the next fetch
+  // is unfiltered and the switcher re-derives from THAT period's expenses —
+  // otherwise a currency picked under one period leaks into another, hiding
+  // the chips (or filtering to a currency with no data) for Today and Week.
+  useEffect(() => { setCurrency(null) }, [period])
+
   // Once we know which currencies exist, lock onto a sensible default (the
   // user's own currency if present) and re-fetch filtered. Also recovers if
   // the chosen currency has no data in a newly selected period.
