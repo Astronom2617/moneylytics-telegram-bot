@@ -2,53 +2,76 @@
 
 > **Try it live: [@moneylytics_bot](https://t.me/moneylytics_bot)**
 
-A Telegram bot for personal expense tracking with automatic financial analytics and reporting.
+A personal expense tracker for Telegram: log spending from a chat message, browse and analyse it in a built-in Mini App, and import card transactions automatically from Monobank.
 
 ## Why I built this
 
-I've always struggled with financial literacy, and existing finance apps never felt convenient to me. Since I spend a lot of time in Telegram, I decided to build a bot that lets me track expenses without leaving the app — just send a message like `500 food pizza` and it's saved. This project also gave me a chance to explore NLP and ML classification on a real-world problem.
+I've always struggled with financial literacy, and existing finance apps never felt convenient to me. Since I spend a lot of time in Telegram, I decided to build a bot that lets me track expenses without leaving the app — just send a message like `500 food pizza` and it's saved. It started as a simple bot and grew into a full Telegram Mini App with bank integration. This project also gave me a chance to explore NLP and ML classification on a real-world problem.
 
 ## Features
 
-- **Expense tracking** — add expenses in natural format: `amount category description`
-- **Daily & weekly reports** — grouped by category with totals
-- **Category analytics** — pie charts generated with Matplotlib
-- **Budget limits** — set daily/weekly limits with notifications
-- **Multi-currency** — EUR, USD, UAH, GBP
+- **Quick logging** — natural format in chat: `amount category description` (e.g. `500 food pizza`)
+- **Telegram Mini App** — a React web app inside Telegram: dashboard, history, analytics, add/edit expenses
+- **Monobank auto-import** — connect a Monobank personal token and card spending is imported in real time via webhook; transfers between your own accounts/jars are filtered out, and transfers to other people are categorised separately
+- **Analytics** — category donut and 7-day spending chart in the Mini App; category charts in chat (Matplotlib)
+- **Budgets** — daily/weekly limits per currency with overspend notifications
+- **Multi-currency** — EUR, USD, UAH, GBP, tracked independently (no implicit conversion)
+- **Categories** — food, transport, shopping, health, entertainment, beauty, housing, utilities, education, travel, gifts, transfer, other
+- **Automatic categorisation** — a rule-based keyword classifier suggests a category from the description
+- **Back-dating** — log an expense for a past date
 - **Multilingual** — English, Russian, Ukrainian
-- **Data export** — CSV export of all expenses
+- **CSV export** of all expenses
+
+## Architecture
+
+Two processes (see `Procfile`):
+
+- **`worker` → `main.py`** — the Telegram bot (aiogram 3): chat commands, expense parsing, reports, budgets, notifications.
+- **`web` → `webapp.py`** — a FastAPI app serving the Mini App REST API, the Monobank webhook, and the built React frontend as static files. Mini App requests are JWT-authenticated; Monobank personal tokens are encrypted at rest (Fernet).
+
+Both processes share one database via SQLAlchemy — SQLite locally, PostgreSQL on Heroku.
 
 ## Tech Stack
 
-- **Python** 3.11
-- **aiogram** 3.24.0 — Telegram Bot API framework
-- **SQLAlchemy** 2.0 — ORM for database operations
-- **SQLite** — local database
-- **Pandas** — data analysis
-- **Matplotlib / Seaborn** — data visualization
-- **scikit-learn** — ML experiments
+**Backend / bot**
+- Python 3.13
+- aiogram 3.24 — Telegram Bot API
+- FastAPI + Uvicorn — Mini App API & Monobank webhook
+- SQLAlchemy 2.0 — ORM (SQLite local / PostgreSQL on Heroku)
+- PyJWT, cryptography (Fernet) — Mini App auth & Monobank token encryption
+- pandas, Matplotlib / Seaborn — in-chat charts
+- scikit-learn, NumPy — category-classification experiments
+
+**Frontend (Telegram Mini App)**
+- React 18 + Vite 5
+- Recharts — charts
+- lucide-react — icons
+
+**Deployment**
+- Heroku (web + worker dynos, Postgres add-on)
 
 ## Project Structure
 
 ```
 moneylytics-bot/
+├── main.py                 # aiogram bot entrypoint (worker process)
+├── webapp.py               # FastAPI: Mini App API, Monobank webhook, static frontend
 ├── databases/
-│   ├── db.py          # Database connection and session management
-│   └── models.py      # SQLAlchemy models (User, Expense)
+│   ├── db.py               # Engine/session + schema migrations (SQLite/Postgres)
+│   └── models.py           # SQLAlchemy models (User, Expense, FeedbackReport)
 ├── handlers/
-│   ├── start.py       # /start + registration
-│   ├── onboarding.py  # New user onboarding
-│   ├── expenses.py    # Expense input parsing
-│   ├── reports.py     # Daily/weekly/category reports
-│   ├── budget.py      # Budget limits and notifications
-│   └── callbacks.py   # Inline buttons, edit/delete, export
-├── utils/
-│   ├── translations.py  # i18n (EN/RU/UK)
-│   ├── keyboards.py     # Reply and inline keyboards
-│   ├── currency.py      # Currency mappings
-│   ├── analytics.py     # Analytics helpers
-│   └── charts.py        # Chart generation
-└── main.py
+│   ├── start.py            # /start + registration
+│   ├── onboarding.py       # New-user onboarding
+│   ├── expenses.py         # Expense parsing + rule-based category classifier
+│   ├── reports.py          # Daily/weekly/category reports
+│   ├── budget.py           # Budget limits & notifications
+│   ├── callbacks.py        # Inline buttons, edit/delete, export
+│   ├── feedback.py         # User feedback
+│   └── admin.py            # Admin utilities
+├── utils/                  # i18n, keyboards, currency, analytics, chart generation
+├── frontend/               # React + Vite Mini App (built to frontend/dist)
+├── moneylytics_baseline_experiment.ipynb
+└── expenses_ml_dataset.csv
 ```
 
 ## ML Experiment — Expense Category Classification
@@ -78,6 +101,8 @@ Rule-Based v2 outperformed every ML model. The most frustrating part was tuning 
 
 The hybrid approach (Rule-Based as primary, ML as fallback for unknown descriptions) actually performed *worse* than Rule-Based alone — because the ML fallback had only 7 examples to work with in the test set and achieved 0.29 accuracy on them.
 
+The Rule-Based v2 classifier is what ships in the bot (`handlers/expenses.py`).
+
 ### Next steps
 
 - Collect real transaction descriptions from bot users
@@ -86,20 +111,41 @@ The hybrid approach (Rule-Based as primary, ML as fallback for unknown descripti
 
 ## Installation
 
+### Bot + API
+
 ```bash
-git clone https://github.com/Astronom2617/moneylytics-bot.git
-cd moneylytics-bot
+git clone https://github.com/Astronom2617/moneylytics-telegram-bot.git
+cd moneylytics-telegram-bot
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
-# Add your BOT_TOKEN to .env
-python main.py
+cp .env.example .env               # add your BOT_TOKEN
+
+python main.py                     # Telegram bot (worker)
+uvicorn webapp:app --reload        # Mini App API (web) — optional locally
 ```
+
+### Frontend (Mini App)
+
+```bash
+cd frontend
+npm install
+npm run dev        # local dev server
+npm run build      # production build → frontend/dist (served by webapp.py)
+```
+
+### Environment
+
+| Variable | Required | Notes |
+|---|---|---|
+| `BOT_TOKEN` | yes | Telegram bot token |
+| `DATABASE_URL` | no | Defaults to local SQLite; set to a Postgres URL in production |
+| `JWT_SECRET` | no | Mini App auth; defaults to a value derived from `BOT_TOKEN` |
+| `MONO_ENCRYPTION_KEY` | for Monobank | Fernet key used to encrypt stored Monobank tokens |
 
 ## Usage
 
-### Commands
+### Chat commands
 
 | Command | Description |
 |---|---|
@@ -119,7 +165,11 @@ python main.py
 5 transport
 ```
 
-Amount is required. Category is required. Description is optional.
+Amount and category are required; description is optional. If you omit or mistype the category, one is suggested automatically from the description.
+
+### Monobank auto-import
+
+Connect your Monobank personal token in the Mini App settings. Card spending is then imported automatically via webhook. Transfers between your own accounts and jars are skipped; transfers to other people are saved under the **transfer** category with the recipient kept in a dedicated field.
 
 ## License
 
