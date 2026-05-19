@@ -151,6 +151,8 @@ def init_db():
                 # is added plain and uniqueness enforced via a unique index —
                 # works on Postgres and SQLite and still allows many NULLs.
                 conn.execute(text("ALTER TABLE expenses ADD COLUMN mono_tx_id VARCHAR(100)"))
+            if "mono_counter_name" not in columns:
+                conn.execute(text("ALTER TABLE expenses ADD COLUMN mono_counter_name VARCHAR(255)"))
             conn.execute(text(
                 "CREATE UNIQUE INDEX IF NOT EXISTS ix_expenses_mono_tx_id "
                 "ON expenses (mono_tx_id)"

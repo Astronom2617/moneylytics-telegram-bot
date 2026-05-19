@@ -79,6 +79,9 @@ class Expense(Base):
     # Monobank transaction id — set only for auto-imported expenses. The
     # unique constraint makes webhook delivery idempotent (Mono retries).
     mono_tx_id: Mapped[str | None] = mapped_column(String(100), nullable=True, unique=True)
+    # Monobank counterparty name (statementItem.counterName) — the recipient
+    # shown for auto-imported expenses; kept out of the free-form description.
+    mono_counter_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 class FeedbackReport(Base):
     __tablename__ = 'feedback_reports'

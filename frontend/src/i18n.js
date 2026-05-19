@@ -82,6 +82,7 @@ const dict = {
 
     // Expense
     'expense.date':               'Date',
+    'expense.recipient':          'Recipient',
 
     // Settings
     'settings.budgets':           'Budgets',
@@ -109,6 +110,11 @@ const dict = {
     'settings.monoApiLink':           'Get token →',
     'settings.monoSource':            'Monobank',
     'settings.monoDisconnectConfirm': 'Disconnect Monobank?',
+    'settings.monoInstructions':      'How to get your token:',
+    'settings.monoStep1':             'Open api.monobank.ua',
+    'settings.monoStep2':             'Scan the QR code with your Monobank app',
+    'settings.monoStep3':             "Tap 'Get token' on the page",
+    'settings.monoStep4':             'Copy and paste it here',
 
     // Profile
     'profile.title':       'Profile',
@@ -206,6 +212,7 @@ const dict = {
     'common.save':                'Сохранить',
 
     'expense.date':               'Дата',
+    'expense.recipient':          'Получатель',
 
     'settings.budgets':           'Бюджеты',
     'settings.budgetsHint':       'Лимит для каждой валюты — пусто означает без лимита.',
@@ -232,6 +239,11 @@ const dict = {
     'settings.monoApiLink':           'Получить токен →',
     'settings.monoSource':            'Монобанк',
     'settings.monoDisconnectConfirm': 'Отключить Монобанк?',
+    'settings.monoInstructions':      'Как получить токен:',
+    'settings.monoStep1':             'Открой api.monobank.ua',
+    'settings.monoStep2':             'Отсканируй QR-код приложением Монобанк',
+    'settings.monoStep3':             "Нажми 'Получить токен' на странице",
+    'settings.monoStep4':             'Скопируй и вставь сюда',
 
     'profile.title':       'Профиль',
     'profile.memberSince': 'С нами с',
@@ -327,6 +339,7 @@ const dict = {
     'common.save':                'Зберегти',
 
     'expense.date':               'Дата',
+    'expense.recipient':          'Одержувач',
 
     'settings.budgets':           'Бюджети',
     'settings.budgetsHint':       'Ліміт для кожної валюти — порожньо означає без ліміту.',
@@ -353,6 +366,11 @@ const dict = {
     'settings.monoApiLink':           'Отримати токен →',
     'settings.monoSource':            'Монобанк',
     'settings.monoDisconnectConfirm': 'Відключити Монобанк?',
+    'settings.monoInstructions':      'Як отримати токен:',
+    'settings.monoStep1':             'Відкрий api.monobank.ua',
+    'settings.monoStep2':             'Відскануй QR-код додатком Монобанк',
+    'settings.monoStep3':             "Натисни 'Отримати токен' на сторінці",
+    'settings.monoStep4':             'Скопіюй та встав сюди',
 
     'profile.title':       'Профіль',
     'profile.memberSince': 'З нами з',

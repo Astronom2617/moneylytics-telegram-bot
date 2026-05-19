@@ -10,6 +10,33 @@ const LANGUAGES = [
   { id: 'uk', label: '🇺🇦 Українська' },
 ]
 
+const MONO_TOKEN_URL = 'https://api.monobank.ua/'
+
+// Turns the literal "api.monobank.ua" inside an instruction line into a
+// tappable link, leaving the rest of the text untouched.
+function linkifyMono(text) {
+  const parts = text.split('api.monobank.ua')
+  if (parts.length === 1) return text
+  const out = []
+  parts.forEach((part, i) => {
+    if (i > 0) {
+      out.push(
+        <a
+          key={`l${i}`}
+          href={MONO_TOKEN_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--accent-dark)', textDecoration: 'underline' }}
+        >
+          api.monobank.ua
+        </a>,
+      )
+    }
+    if (part) out.push(<span key={`t${i}`}>{part}</span>)
+  })
+  return out
+}
+
 // Builds the editable form from stored budgets: every cell is a string so
 // empty means "no limit". Currencies absent from the user's budgets simply
 // start blank.
@@ -324,13 +351,27 @@ export default function Settings({ user, setUser }) {
               style={{ marginBottom: 8 }}
             />
             <a
-              href="https://monobank.ua/d/api"
+              href={MONO_TOKEN_URL}
               target="_blank"
               rel="noopener noreferrer"
               style={{ fontSize: 12, color: 'var(--accent-dark)', textDecoration: 'none' }}
             >
               {t('settings.monoApiLink')}
             </a>
+            <div style={{
+              marginTop: 12,
+              fontSize: 12,
+              color: 'var(--tg-theme-hint-color)',
+              lineHeight: 1.6,
+            }}>
+              <p style={{ marginBottom: 4 }}>{t('settings.monoInstructions')}</p>
+              <ol style={{ margin: 0, paddingLeft: 18 }}>
+                <li>{linkifyMono(t('settings.monoStep1'))}</li>
+                <li>{linkifyMono(t('settings.monoStep2'))}</li>
+                <li>{linkifyMono(t('settings.monoStep3'))}</li>
+                <li>{linkifyMono(t('settings.monoStep4'))}</li>
+              </ol>
+            </div>
             {monoError && (
               <p style={{ color: 'var(--danger)', fontSize: 12, marginTop: 10 }}>{monoError}</p>
             )}

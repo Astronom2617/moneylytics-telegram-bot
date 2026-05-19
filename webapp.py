@@ -6,6 +6,7 @@ import io
 import hmac
 import hashlib
 import json
+import time
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta
@@ -62,6 +63,12 @@ MONO_MCC_CATEGORY = {mcc: cat for cat, mccs in _MONO_MCC_GROUPS.items() for mcc 
 # Monobank rate-limits client-info to once per 60s per token, so this matters.
 _mono_account_cache: dict[str, int] = {}
 
+# user id → (set of own IBANs, fetched-at unix ts). Lets the webhook recognise
+# the user's own card-to-card / jar transfers and skip them. Refreshed lazily
+# once older than an hour to respect Monobank's client-info rate limit.
+_mono_iban_cache: dict[int, tuple[set[str], float]] = {}
+_MONO_IBAN_TTL = 3600  # seconds
+
 
 def _get_fernet() -> Fernet:
     if not MONO_ENCRYPTION_KEY:
@@ -117,6 +124,24 @@ def _resolve_mono_user(db: Session, account_id: str):
         if _mono_account_cache.get(account_id) == user.id:
             return user
     return None
+
+
+def _user_own_ibans(user) -> set[str]:
+    """The user's own account IBANs, so the webhook can skip self-transfers.
+    Cached per user for an hour; on a fetch error we fall back to any stale
+    cached set (better than dropping a legit expense)."""
+    now = time.time()
+    cached = _mono_iban_cache.get(user.id)
+    if cached is not None and now - cached[1] < _MONO_IBAN_TTL:
+        return cached[0]
+    try:
+        token = decrypt_token(user.mono_token)
+        info = _mono_request("/personal/client-info", token)
+    except (InvalidToken, urllib.error.URLError, ValueError, OSError):
+        return cached[0] if cached else set()
+    ibans = {acc.get("iban") for acc in info.get("accounts", []) if acc.get("iban")}
+    _mono_iban_cache[user.id] = (ibans, now)
+    return ibans
 
 
 def get_db():
@@ -477,9 +502,17 @@ def _user_dict(u):
             "created_at": u.created_at.isoformat() if u.created_at else None}
 
 def _expense_dict(e):
+    # Mono expenses store a naive UTC timestamp (Monobank's unix `time`), so we
+    # tag them with a 'Z' suffix and the frontend's new Date(...) converts them
+    # to the viewer's local time. Manually-added expenses already hold the
+    # client's local wall-clock, so they stay suffix-free.
+    created_at = e.created_at.isoformat()
+    if e.mono_tx_id:
+        created_at += "Z"
     return {"id": e.id, "amount": e.amount, "category": e.category, "currency": e.currency,
-            "description": e.description, "created_at": e.created_at.isoformat(),
-            "date_edited": bool(e.date_edited), "mono_tx_id": e.mono_tx_id}
+            "description": e.description, "created_at": created_at,
+            "date_edited": bool(e.date_edited), "mono_tx_id": e.mono_tx_id,
+            "mono_counter_name": e.mono_counter_name}
 
 
 @app.post("/api/mono/setup")
@@ -515,6 +548,7 @@ def mono_disconnect(user_id: int = Depends(get_current_user_id), db: Session = D
     for acc_id, uid in list(_mono_account_cache.items()):
         if uid == user_id:
             _mono_account_cache.pop(acc_id, None)
+    _mono_iban_cache.pop(user_id, None)
     return {"ok": True}
 
 
@@ -551,10 +585,18 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
         if not user:
             return {"status": "no_user"}
 
+        # Skip the user's own transfers between their accounts/jars — these
+        # aren't spending, just money moving around.
+        counter_iban = item.get("counterIban")
+        if counter_iban and counter_iban in _user_own_ibans(user):
+            return {"status": "own_transfer"}
+
         currency = MONO_CURRENCY.get(item.get("currencyCode"), "UAH")
         category = MONO_MCC_CATEGORY.get(item.get("mcc"), "other")
-        created_at = datetime.fromtimestamp(item.get("time")) if item.get("time") else datetime.utcnow()
-        description = item.get("description") or item.get("comment")
+        # Monobank's `time` is a unix timestamp in UTC — keep it naive UTC.
+        created_at = datetime.utcfromtimestamp(item.get("time")) if item.get("time") else datetime.utcnow()
+        description = item.get("description") or item.get("comment") or ""
+        counter_name = item.get("counterName")
 
         expense = Expense(
             user_id=user.id,
@@ -564,6 +606,7 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
             description=description,
             created_at=created_at,
             mono_tx_id=str(tx_id),
+            mono_counter_name=counter_name,
         )
         db.add(expense)
         try:
