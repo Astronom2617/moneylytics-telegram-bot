@@ -75,6 +75,19 @@ MONO_MCC_CATEGORY = {mcc: cat for cat, mccs in _MONO_MCC_GROUPS.items() for mcc 
 # apart from spending in the webhook.
 _MONO_TRANSFER_MCC = 4829
 
+# For MCC 4829, Monobank leaves counterName empty for BOTH self-transfers
+# and P2P sends to other people — the only thing that differs is the
+# free-form description. Self-transfers carry one of these generic phrases
+# (often followed by a card mask); a P2P to a person carries their name.
+# Compared lower-cased via startswith, so trailing card masks don't matter.
+_MONO_OWN_TRANSFER_PHRASES = (
+    "переказ на картку",
+    "переказ між рахунками",
+    "між своїми",
+    "на свою картку",
+    "перевод на карту",
+)
+
 # account id → user id, so the webhook avoids a Monobank API call per delivery.
 # Monobank rate-limits client-info to once per 60s per token, so this matters.
 _mono_account_cache: dict[str, int] = {}
@@ -641,39 +654,40 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
         # business, so it's a real payment, not a personal transfer.
         is_transfer = mcc == _MONO_TRANSFER_MCC and not counter_edrpou
 
-        # BUG 1 — skip the user's own movements between their own
-        # accounts/jars (not spending). Two real shapes, confirmed from
-        # production webhook logs:
-        #   * IBAN transfer between own accounts -> counterIban is set and
-        #     matches one of the user's own IBANs.
-        #   * Monobank "Між своїми" book transfer -> arrives as MCC 4829
-        #     with counterIban, counterEdrpou AND counterName all empty
-        #     (there is genuinely no counterparty data to match on).
+        # Skip the user's own movements between their own accounts/jars
+        # (not spending). Two shapes:
+        #   * IBAN transfer to one of the user's own IBANs.
+        #   * MCC 4829 with no counterName and a generic Monobank
+        #     self-transfer phrase as the description ("Переказ на
+        #     картку ...", "Між своїми", etc). A real P2P to another
+        #     person also has an empty counterName, but its description
+        #     is the recipient's name, not one of these phrases.
+        desc_lower = raw_desc.lower()
+        is_own_phrase = any(
+            desc_lower.startswith(p) for p in _MONO_OWN_TRANSFER_PHRASES
+        )
         own_transfer = (counter_iban and counter_iban in own_ibans) or (
-            is_transfer and not counter_iban and not counter_name
+            is_transfer and not counter_name and is_own_phrase
         )
         if own_transfer:
             logger.info("mono webhook tx=%s skipped: own transfer", tx_id)
             return {"status": "own_transfer"}
 
         currency = MONO_CURRENCY.get(item.get("currencyCode"), "UAH")
-        # A money transfer to another person (MCC 4829 with a counterName,
-        # no business counterEdrpou) is its own category; the recipient is
-        # kept in mono_counter_name. Everything else maps by MCC.
-        if is_transfer and counter_name:
-            category = "transfer"
-        else:
-            category = MONO_MCC_CATEGORY.get(mcc, "other")
         # Monobank's `time` is a unix timestamp in UTC — keep it naive UTC.
         created_at = datetime.utcfromtimestamp(item.get("time")) if item.get("time") else datetime.utcnow()
-        # BUG 2 — for a P2P transfer to an individual (MCC 4829, no
-        # counterEdrpou) Monobank repeats the recipient's name in the
-        # free-form `description`, which then surfaced as the expense note.
-        # Drop the description for these; the name lives only in its own
-        # dedicated column (mono_counter_name). Retail purchases keep their
-        # description because they aren't transfers (is_transfer is False).
-        description = "" if (is_transfer and counter_name) else raw_desc
-        counter_name = counter_name or None
+        # Any non-skipped MCC 4829 is a P2P transfer to another person.
+        # The recipient name is in counterName or, when Monobank leaves
+        # that empty, in the free-form description. Keep the recipient
+        # only in its dedicated column — never in the expense description.
+        if is_transfer:
+            category = "transfer"
+            counter_name = counter_name or raw_desc or None
+            description = ""
+        else:
+            category = MONO_MCC_CATEGORY.get(mcc, "other")
+            counter_name = counter_name or None
+            description = raw_desc
 
         expense = Expense(
             user_id=user.id,
