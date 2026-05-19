@@ -591,6 +591,13 @@ def mono_status(user_id: int = Depends(get_current_user_id), db: Session = Depen
     return {"connected": bool(user.mono_token)}
 
 
+@app.get("/api/mono/webhook")
+async def mono_webhook_verify():
+    # Monobank probes the URL with a GET before accepting the webhook
+    # registration; it must answer 200.
+    return {"status": "ok"}
+
+
 @app.post("/api/mono/webhook")
 def mono_webhook(body: dict, db: Session = Depends(get_db)):
     # Always 200 — Monobank retries any non-200. Every skip/error path below
