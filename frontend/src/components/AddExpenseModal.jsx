@@ -18,6 +18,7 @@ const CATEGORIES = [
   { id: 'Education',     emoji: '📚' },
   { id: 'Travel',        emoji: '✈️' },
   { id: 'Gifts',         emoji: '🎁' },
+  { id: 'Transfer',      emoji: '💸' },
   { id: 'Other',         emoji: '💰' },
 ]
 

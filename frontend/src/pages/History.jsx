@@ -23,6 +23,7 @@ const CATEGORIES = [
   { id: 'Education',     emoji: '📚' },
   { id: 'Travel',        emoji: '✈️' },
   { id: 'Gifts',         emoji: '🎁' },
+  { id: 'Transfer',      emoji: '💸' },
   { id: 'Other',         emoji: '💰' },
 ]
 
@@ -63,7 +64,7 @@ function getCategoryEmoji(cat) {
     Food: '🍕', Transport: '🚌', Shopping: '🛍',
     Entertainment: '🎬', Health: '💊', Beauty: '💅', Housing: '🏠',
     Utilities: '💡', Education: '📚', Travel: '✈️',
-    Gifts: '🎁', Other: '💰',
+    Gifts: '🎁', Transfer: '💸', Other: '💰',
   }
   const cap = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
   return map[cap] ?? '💰'

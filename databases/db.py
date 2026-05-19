@@ -65,7 +65,7 @@ def _normalize_legacy_categories(conn):
     UPDATE expenses
     SET category = CASE
         {case_statement}
-        WHEN LOWER(category) IN ('food', 'transport', 'housing', 'entertainment', 'beauty', 'other')
+        WHEN LOWER(category) IN ('food', 'transport', 'housing', 'entertainment', 'beauty', 'transfer', 'other')
             THEN LOWER(category)
         ELSE 'other'
     END

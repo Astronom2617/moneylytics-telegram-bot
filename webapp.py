@@ -650,7 +650,13 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
             return {"status": "own_transfer"}
 
         currency = MONO_CURRENCY.get(item.get("currencyCode"), "UAH")
-        category = MONO_MCC_CATEGORY.get(mcc, "other")
+        # A money transfer to another person (MCC 4829 with a counterName,
+        # no business counterEdrpou) is its own category; the recipient is
+        # kept in mono_counter_name. Everything else maps by MCC.
+        if is_transfer and counter_name:
+            category = "transfer"
+        else:
+            category = MONO_MCC_CATEGORY.get(mcc, "other")
         # Monobank's `time` is a unix timestamp in UTC — keep it naive UTC.
         created_at = datetime.utcfromtimestamp(item.get("time")) if item.get("time") else datetime.utcnow()
         # BUG 2 — for a P2P transfer to an individual (MCC 4829, no

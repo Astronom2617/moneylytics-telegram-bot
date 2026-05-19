@@ -135,6 +135,7 @@ const dict = {
     'cat.Education':     'Education',
     'cat.Travel':        'Travel',
     'cat.Gifts':         'Gifts',
+    'cat.Transfer':      'Transfer',
     'cat.Other':         'Other',
   },
 
@@ -262,6 +263,7 @@ const dict = {
     'cat.Education':     'Образование',
     'cat.Travel':        'Путешествия',
     'cat.Gifts':         'Подарки',
+    'cat.Transfer':      'Перевод',
     'cat.Other':         'Прочее',
   },
 
@@ -389,6 +391,7 @@ const dict = {
     'cat.Education':     'Освіта',
     'cat.Travel':        'Подорожі',
     'cat.Gifts':         'Подарунки',
+    'cat.Transfer':      'Переказ',
     'cat.Other':         'Інше',
   },
 }

@@ -24,6 +24,7 @@ const CATEGORY_COLORS = {
   Education: '#6366F1',
   Travel: '#14B8A6',
   Gifts: '#EF4444',
+  Transfer: '#0EA5E9',
   Other: '#94A3B8',
 }
 
@@ -31,7 +32,7 @@ const CATEGORY_EMOJI = {
   Food: '🍕', Transport: '🚌', Shopping: '🛍',
   Entertainment: '🎬', Health: '💊', Beauty: '💅', Housing: '🏠',
   Utilities: '💡', Education: '📚', Travel: '✈️',
-  Gifts: '🎁', Other: '💰',
+  Gifts: '🎁', Transfer: '💸', Other: '💰',
 }
 
 const SECTION_LABEL = {
