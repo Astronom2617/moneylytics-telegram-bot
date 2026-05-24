@@ -10,7 +10,12 @@ import { Trash2 } from 'lucide-react'
 // threshold: we snap back. That avoids accidental deletes on flicks.
 
 const ACTION_W = 88        // matches .swipe-row-action width
-const THRESHOLD = 60       // px past which release = delete
+// Delete fires only if the user swipes PAST the full reveal of the action
+// button. A swipe that just exposes "Delete" but no further snaps back —
+// that lets the user peek at what's underneath without committing.
+const TRIGGER_OVERSHOOT = 40
+const DELETE_THRESHOLD = ACTION_W + TRIGGER_OVERSHOOT  // 128px
+const MAX_SWIPE = ACTION_W + 140                       // rubber-band ceiling
 const ANGLE_LIMIT = 1.2    // |dx/dy| must exceed this to claim horizontal
 
 export default function SwipeableRow({ children, onDelete, label = 'Delete' }) {
@@ -38,19 +43,32 @@ export default function SwipeableRow({ children, onDelete, label = 'Delete' }) {
       if (start.current.claimed) setSwiping(true)
     }
     if (!start.current.claimed) return
-    // Only allow left-swipe; clamp right-swipe at 0 and a bit past action width.
-    const next = Math.max(-ACTION_W - 24, Math.min(0, rawDx))
+    // Left-swipe only. Past the action width we apply rubber-band resistance
+    // so it's clear you're "stretching" the row beyond the open position,
+    // and the row can't be dragged off-screen entirely.
+    let next
+    if (rawDx >= 0) {
+      next = 0
+    } else if (rawDx >= -ACTION_W) {
+      next = rawDx
+    } else {
+      const overshoot = -rawDx - ACTION_W
+      // Resistance grows with distance: at MAX_SWIPE the function saturates.
+      const damped = (MAX_SWIPE - ACTION_W) * (1 - Math.exp(-overshoot / 60))
+      next = -ACTION_W - damped
+    }
     setDx(next)
   }
 
   const onTouchEnd = () => {
     setSwiping(false)
     if (!start.current.claimed) return
-    if (Math.abs(dx) >= THRESHOLD) {
-      // Slide the row fully off before unmounting feels nicer than an instant
-      // disappearance; the parent removes us after onDelete runs.
-      setDx(-ACTION_W - 80)
-      // Defer the callback so the slide-out frame has a chance to paint.
+    // Only fire delete when the user has clearly committed — past the full
+    // action reveal plus a little overshoot. Anything short snaps back to
+    // closed, so a curious "peek" swipe doesn't accidentally delete.
+    if (Math.abs(dx) >= DELETE_THRESHOLD) {
+      // Slide further off before the row unmounts; parent removes us after.
+      setDx(-MAX_SWIPE)
       requestAnimationFrame(() => onDelete?.())
     } else {
       setDx(0)
