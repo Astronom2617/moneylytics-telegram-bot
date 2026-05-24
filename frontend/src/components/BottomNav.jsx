@@ -1,11 +1,12 @@
-import { LayoutDashboard, History, BarChart2, Settings } from 'lucide-react'
+import { LayoutDashboard, History, BarChart2, Settings, Repeat } from 'lucide-react'
 import { useTranslation } from '../i18n.js'
 
 const TABS = [
-  { id: 'dashboard', tKey: 'nav.home',      Icon: LayoutDashboard },
-  { id: 'history',   tKey: 'nav.history',   Icon: History },
-  { id: 'analytics', tKey: 'nav.analytics', Icon: BarChart2 },
-  { id: 'settings',  tKey: 'nav.settings',  Icon: Settings },
+  { id: 'dashboard',     tKey: 'nav.home',          Icon: LayoutDashboard },
+  { id: 'history',       tKey: 'nav.history',       Icon: History },
+  { id: 'subscriptions', tKey: 'nav.subscriptions', Icon: Repeat },
+  { id: 'analytics',     tKey: 'nav.analytics',     Icon: BarChart2 },
+  { id: 'settings',      tKey: 'nav.settings',      Icon: Settings },
 ]
 
 const styles = {
@@ -41,7 +42,7 @@ const styles = {
     top: 0,
     left: '50%',
     transform: 'translateX(-50%)',
-    width: active ? 28 : 0,
+    width: active ? 24 : 0,
     height: 3,
     borderRadius: 3,
     background: 'var(--accent-gradient, var(--accent))',

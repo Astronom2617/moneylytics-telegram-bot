@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import Dashboard  from './pages/Dashboard.jsx'
-import History    from './pages/History.jsx'
-import Analytics  from './pages/Analytics.jsx'
-import Settings   from './pages/Settings.jsx'
+import Dashboard     from './pages/Dashboard.jsx'
+import History       from './pages/History.jsx'
+import Analytics     from './pages/Analytics.jsx'
+import Settings      from './pages/Settings.jsx'
+import Subscriptions from './pages/Subscriptions.jsx'
 import BottomNav  from './components/BottomNav.jsx'
 import { authUser, setToken } from './api.js'
 
@@ -62,10 +63,11 @@ export default function App() {
   )
 
   const pages = {
-    dashboard: <Dashboard user={user} />,
-    history:   <History   user={user} />,
-    analytics: <Analytics user={user} />,
-    settings:  <Settings  user={user} setUser={setUser} />,
+    dashboard:     <Dashboard     user={user} />,
+    history:       <History       user={user} />,
+    subscriptions: <Subscriptions user={user} />,
+    analytics:     <Analytics     user={user} />,
+    settings:      <Settings      user={user} setUser={setUser} />,
   }
 
   return (

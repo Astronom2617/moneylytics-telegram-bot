@@ -11,7 +11,7 @@ import logging
 import time
 import urllib.request
 import urllib.error
-from datetime import datetime, timedelta, time as dtime
+from datetime import datetime, timedelta, time as dtime, date as ddate
 from urllib.parse import parse_qsl
 
 import jwt
@@ -29,7 +29,7 @@ from sqlalchemy.exc import IntegrityError
 load_dotenv()
 
 from databases.db import get_session, init_db
-from databases.models import User, Expense
+from databases.models import User, Expense, Subscription
 
 
 logger = logging.getLogger("moneylytics.mono")
@@ -301,6 +301,7 @@ def list_expenses(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
+    _process_due_subscriptions(db, user_id)
     q = db.query(Expense).filter(Expense.user_id == user_id)
     if period == "custom":
         start, end = _custom_range(from_, to)
@@ -421,6 +422,9 @@ def get_stats(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
+    # Materialise any due subscription charges so this request reflects them.
+    _process_due_subscriptions(db, user_id)
+
     now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start  = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -553,6 +557,177 @@ def get_alltime_stats(user_id: int = Depends(get_current_user_id), db: Session =
         "total_by_currency": total_by_currency,
         "member_since": user.created_at.isoformat() if user.created_at else None,
     }
+
+
+_SUB_PERIODS = ("monthly", "weekly")
+
+
+def _advance_due_date(d: ddate, period: str) -> ddate:
+    """Step a recurring charge's due date forward by one period. Weekly is
+    a flat 7 days. Monthly tries the same day-of-month; when the next month
+    is shorter (e.g. Jan 31 → Feb), it clamps to that month's last day."""
+    if period == "weekly":
+        return d + timedelta(days=7)
+    # monthly
+    month = d.month + 1
+    year = d.year
+    if month > 12:
+        month = 1
+        year += 1
+    # Find last valid day of target month.
+    if month == 12:
+        next_first = ddate(year + 1, 1, 1)
+    else:
+        next_first = ddate(year, month + 1, 1)
+    last_day = (next_first - timedelta(days=1)).day
+    return ddate(year, month, min(d.day, last_day))
+
+
+def _process_due_subscriptions(db: Session, user_id: int) -> int:
+    """Fire any of the user's active subscriptions whose `next_due_date` has
+    arrived: create an Expense per period missed and advance the date. Runs
+    on every /api/stats hit so we don't need a cron. Returns the number of
+    expenses created (mostly for logging/tests)."""
+    today = datetime.now().date()
+    subs = db.query(Subscription).filter(
+        and_(
+            Subscription.user_id == user_id,
+            Subscription.active == True,  # noqa: E712
+            Subscription.next_due_date <= today,
+        )
+    ).all()
+    if not subs:
+        return 0
+    created = 0
+    for sub in subs:
+        # Catch up across long absences in case the user didn't open the app
+        # for several periods. Capped at 24 iterations as a runaway guard.
+        steps = 0
+        while sub.next_due_date <= today and steps < 24:
+            expense = Expense(
+                user_id=user_id,
+                amount=float(sub.amount),
+                category=(sub.category or "other").lower(),
+                currency=sub.currency or "EUR",
+                description=sub.name,
+                created_at=datetime.combine(sub.next_due_date, dtime(12, 0)),
+            )
+            db.add(expense)
+            sub.next_due_date = _advance_due_date(sub.next_due_date, sub.period)
+            created += 1
+            steps += 1
+    db.commit()
+    return created
+
+
+def _sub_dict(s: Subscription) -> dict:
+    return {
+        "id": s.id,
+        "name": s.name,
+        "amount": float(s.amount),
+        "currency": s.currency,
+        "category": s.category,
+        "period": s.period,
+        "next_due_date": s.next_due_date.isoformat() if s.next_due_date else None,
+        "active": bool(s.active),
+    }
+
+
+def _parse_sub_body(body: dict, partial: bool = False) -> dict:
+    """Validate POST/PUT payloads for subscriptions. Returns a dict of
+    fields safe to assign; raises HTTPException(400) on bad input. With
+    partial=True, missing fields are skipped (PATCH-style PUT)."""
+    out: dict = {}
+    if "name" in body or not partial:
+        name = (body.get("name") or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="name required")
+        out["name"] = name[:200]
+    if "amount" in body or not partial:
+        try:
+            amount = float(body.get("amount"))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="amount required")
+        if amount <= 0:
+            raise HTTPException(status_code=400, detail="amount must be positive")
+        out["amount"] = round(amount, 2)
+    if "currency" in body or not partial:
+        cur = (body.get("currency") or "EUR").upper()
+        if cur not in _KNOWN_CURRENCIES:
+            raise HTTPException(status_code=400, detail="unknown currency")
+        out["currency"] = cur
+    if "category" in body or not partial:
+        out["category"] = (body.get("category") or "other").lower()
+    if "period" in body or not partial:
+        period = (body.get("period") or "monthly").lower()
+        if period not in _SUB_PERIODS:
+            raise HTTPException(status_code=400, detail="period must be monthly|weekly")
+        out["period"] = period
+    if "next_due_date" in body or not partial:
+        raw = body.get("next_due_date")
+        try:
+            out["next_due_date"] = datetime.strptime(raw, "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="next_due_date required (YYYY-MM-DD)")
+    if "active" in body:
+        out["active"] = bool(body.get("active"))
+    return out
+
+
+@app.get("/api/subscriptions")
+def list_subscriptions(user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    # Fire any due charges before listing so the next_due_date displayed is
+    # always the upcoming one, never a stale past date.
+    _process_due_subscriptions(db, user_id)
+    subs = db.query(Subscription).filter(Subscription.user_id == user_id).order_by(
+        Subscription.next_due_date.asc()
+    ).all()
+    return [_sub_dict(s) for s in subs]
+
+
+@app.post("/api/subscriptions", status_code=201)
+def create_subscription(body: dict, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    fields = _parse_sub_body(body, partial=False)
+    sub = Subscription(user_id=user_id, **fields)
+    db.add(sub)
+    db.commit()
+    db.refresh(sub)
+    # If next_due_date is today/past, fire immediately so the user sees the
+    # expense materialise right away.
+    _process_due_subscriptions(db, user_id)
+    db.refresh(sub)
+    return _sub_dict(sub)
+
+
+@app.put("/api/subscriptions/{sub_id}")
+def update_subscription(
+    sub_id: int, body: dict,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    sub = db.query(Subscription).filter(
+        and_(Subscription.id == sub_id, Subscription.user_id == user_id)
+    ).first()
+    if not sub:
+        raise HTTPException(status_code=404)
+    fields = _parse_sub_body(body, partial=True)
+    for k, v in fields.items():
+        setattr(sub, k, v)
+    db.commit()
+    db.refresh(sub)
+    return _sub_dict(sub)
+
+
+@app.delete("/api/subscriptions/{sub_id}")
+def delete_subscription(sub_id: int, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    sub = db.query(Subscription).filter(
+        and_(Subscription.id == sub_id, Subscription.user_id == user_id)
+    ).first()
+    if not sub:
+        raise HTTPException(status_code=404)
+    db.delete(sub)
+    db.commit()
+    return {"ok": True}
 
 
 @app.get("/api/expenses/export")

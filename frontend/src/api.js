@@ -59,3 +59,8 @@ export const updateUser = (data) => request('PUT', '/api/user', data)
 export const setupMono     = (token) => request('POST', '/api/mono/setup', { token })
 export const removeMono    = ()      => request('DELETE', '/api/mono/setup')
 export const getMonoStatus = ()      => request('GET', '/api/mono/status')
+
+export const getSubscriptions   = ()         => request('GET', '/api/subscriptions')
+export const createSubscription = (data)     => request('POST', '/api/subscriptions', data)
+export const updateSubscription = (id, data) => request('PUT', `/api/subscriptions/${id}`, data)
+export const deleteSubscription = (id)       => request('DELETE', `/api/subscriptions/${id}`)

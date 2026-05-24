@@ -172,5 +172,8 @@ def init_db():
     if "feedback_reports" not in inspector.get_table_names():
         Base.metadata.tables['feedback_reports'].create(bind=engine)
 
+    if "subscriptions" not in inspector.get_table_names():
+        Base.metadata.tables['subscriptions'].create(bind=engine)
+
 def get_session() -> Session:
     return SessionLocal()

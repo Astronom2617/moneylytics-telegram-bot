@@ -1,5 +1,5 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import BigInteger, String, Float, DateTime, Integer, ForeignKey, Date, JSON
+from sqlalchemy import BigInteger, Boolean, String, Float, DateTime, Integer, ForeignKey, Date, JSON
 from datetime import datetime, date
 
 class Base(DeclarativeBase):
@@ -82,6 +82,24 @@ class Expense(Base):
     # Monobank counterparty name (statementItem.counterName) — the recipient
     # shown for auto-imported expenses; kept out of the free-form description.
     mono_counter_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+class Subscription(Base):
+    """A recurring charge the user wants tracked. The webapp fires due ones
+    on each /api/stats hit (lazy, no cron) — turning them into normal
+    Expense rows and advancing `next_due_date` to the following period."""
+    __tablename__ = 'subscriptions'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('users.id'))
+    name: Mapped[str] = mapped_column(String(200))
+    amount: Mapped[float] = mapped_column(Float)
+    currency: Mapped[str] = mapped_column(String(20), default="EUR", nullable=False)
+    category: Mapped[str] = mapped_column(String(100), default="other")
+    # 'monthly' or 'weekly' — kept as a string so we can extend later.
+    period: Mapped[str] = mapped_column(String(20), default="monthly")
+    next_due_date: Mapped[date] = mapped_column(Date)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
 
 class FeedbackReport(Base):
     __tablename__ = 'feedback_reports'
