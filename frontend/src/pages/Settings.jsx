@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Check } from 'lucide-react'
+import { Check, Plus, X } from 'lucide-react'
 import { updateUser, getAlltimeStats, setupMono, removeMono, getMonoStatus } from '../api.js'
-import { useTranslation } from '../i18n.js'
+import { useTranslation, translateCategory } from '../i18n.js'
 import { CURRENCIES, currencySymbol } from '../currency.js'
+import { CATEGORIES, CATEGORY_EMOJI } from '../categories.js'
 
 const LANGUAGES = [
   { id: 'en', label: '🇬🇧 English' },
@@ -39,13 +40,21 @@ function linkifyMono(text) {
 
 // Builds the editable form from stored budgets: every cell is a string so
 // empty means "no limit". Currencies absent from the user's budgets simply
-// start blank.
+// start blank. Per-category limits live under .categories (same shape).
 function toForm(budgets) {
   const form = {}
   for (const [cur, limits] of Object.entries(budgets || {})) {
+    const cats = {}
+    for (const [cat, cl] of Object.entries(limits?.categories || {})) {
+      cats[cat] = {
+        daily: cl?.daily != null ? String(cl.daily) : '',
+        weekly: cl?.weekly != null ? String(cl.weekly) : '',
+      }
+    }
     form[cur] = {
       daily: limits?.daily != null ? String(limits.daily) : '',
       weekly: limits?.weekly != null ? String(limits.weekly) : '',
+      categories: cats,
     }
   }
   return form
@@ -74,6 +83,158 @@ function fieldErrors(limits) {
     errs.weekly = 'gte'
   }
   return errs
+}
+
+// Per-category editor under one currency card. Categories appear only after
+// the user explicitly adds them via the picker — keeps the form short for
+// people who only want overall limits.
+function CategoryBudgets({
+  cur, curEntry, touched, t, language, errStyle, errorMsg,
+  catErrors, onChange, onAdd, onRemove,
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const cats = curEntry?.categories || {}
+  const usedIds = new Set(Object.keys(cats))
+  const available = CATEGORIES.filter((c) => !usedIds.has(c.id.toLowerCase()))
+  const entries = CATEGORIES
+    .map((c) => [c.id.toLowerCase(), cats[c.id.toLowerCase()]])
+    .filter(([, v]) => v)
+
+  if (!entries.length && !pickerOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => setPickerOpen(true)}
+        style={{
+          marginTop: 12, background: 'transparent', border: 'none',
+          color: 'var(--accent-dark)', fontSize: 12, fontWeight: 600,
+          display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+          padding: 0,
+        }}
+      >
+        <Plus size={14} /> {t('settings.addCategoryBudget')}
+      </button>
+    )
+  }
+
+  return (
+    <div style={{
+      marginTop: 14, paddingTop: 12,
+      borderTop: '1px solid var(--tg-theme-secondary-bg-color)',
+    }}>
+      <p style={{
+        fontSize: 11, fontWeight: 600, letterSpacing: '0.4px',
+        textTransform: 'uppercase', color: 'var(--tg-theme-hint-color)',
+        marginBottom: 8,
+      }}>
+        {t('settings.byCategory')}
+      </p>
+
+      {entries.map(([catId, cl]) => {
+        const cap = catId.charAt(0).toUpperCase() + catId.slice(1)
+        const emoji = CATEGORY_EMOJI[cap] ?? '💰'
+        const errs = catErrors(cl, curEntry)
+        const dT = touched[`${cur}.${catId}.daily`]
+        const wT = touched[`${cur}.${catId}.weekly`]
+        const showD = errs.daily && (dT || (errs.daily === 'lte' && wT))
+        const showW = errs.weekly && (wT || (errs.weekly === 'gte' && dT))
+        return (
+          <div key={catId} style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 15 }}>{emoji}</span>
+                {translateCategory(catId, language)}
+              </span>
+              <button
+                type="button"
+                onClick={() => onRemove(cur, catId)}
+                aria-label="Remove"
+                style={{
+                  background: 'transparent', border: 'none',
+                  color: 'var(--tg-theme-hint-color)', cursor: 'pointer',
+                  padding: 2, display: 'flex',
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <input
+                  className="input"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  placeholder={t('settings.dailyLimit')}
+                  value={cl.daily ?? ''}
+                  onChange={(e) => onChange(cur, catId, 'daily', e.target.value)}
+                  onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
+                />
+                {showD && <p style={errStyle}>{errorMsg(errs.daily)}</p>}
+              </div>
+              <div style={{ flex: 1 }}>
+                <input
+                  className="input"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  placeholder={t('settings.weeklyLimit')}
+                  value={cl.weekly ?? ''}
+                  onChange={(e) => onChange(cur, catId, 'weekly', e.target.value)}
+                  onKeyDown={(e) => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
+                />
+                {showW && <p style={errStyle}>{errorMsg(errs.weekly)}</p>}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+
+      {pickerOpen ? (
+        <div className="chips" style={{ marginTop: 8 }}>
+          {available.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className="chip"
+              onClick={() => {
+                onAdd(cur, c.id.toLowerCase())
+                if (available.length <= 1) setPickerOpen(false)
+              }}
+            >
+              {c.emoji} {translateCategory(c.id, language)}
+            </button>
+          ))}
+          {available.length === 0 && (
+            <span style={{ fontSize: 12, color: 'var(--tg-theme-hint-color)' }}>—</span>
+          )}
+          <button
+            type="button"
+            className="chip"
+            onClick={() => setPickerOpen(false)}
+            style={{ opacity: 0.7 }}
+          >
+            <X size={12} style={{ marginRight: 2 }} />
+          </button>
+        </div>
+      ) : available.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          style={{
+            marginTop: 4, background: 'transparent', border: 'none',
+            color: 'var(--accent-dark)', fontSize: 12, fontWeight: 600,
+            display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          <Plus size={14} /> {t('settings.addCategoryBudget')}
+        </button>
+      ) : null}
+    </div>
+  )
 }
 
 export default function Settings({ user, setUser }) {
@@ -151,20 +312,88 @@ export default function Settings({ user, setUser }) {
   const setLimit = (cur, period, value) => {
     setForm((prev) => ({
       ...prev,
-      [cur]: { ...(prev[cur] || { daily: '', weekly: '' }), [period]: value },
+      [cur]: { ...(prev[cur] || { daily: '', weekly: '', categories: {} }), [period]: value },
     }))
     setTouched((prev) => ({ ...prev, [`${cur}.${period}`]: true }))
+  }
+
+  const setCatLimit = (cur, cat, period, value) => {
+    setForm((prev) => {
+      const curEntry = prev[cur] || { daily: '', weekly: '', categories: {} }
+      const cats = curEntry.categories || {}
+      const catEntry = cats[cat] || { daily: '', weekly: '' }
+      return {
+        ...prev,
+        [cur]: {
+          ...curEntry,
+          categories: { ...cats, [cat]: { ...catEntry, [period]: value } },
+        },
+      }
+    })
+    setTouched((prev) => ({ ...prev, [`${cur}.${cat}.${period}`]: true }))
+  }
+
+  const addCatBudget = (cur, cat) => {
+    setForm((prev) => {
+      const curEntry = prev[cur] || { daily: '', weekly: '', categories: {} }
+      const cats = curEntry.categories || {}
+      if (cats[cat]) return prev
+      return {
+        ...prev,
+        [cur]: {
+          ...curEntry,
+          categories: { ...cats, [cat]: { daily: '', weekly: '' } },
+        },
+      }
+    })
+  }
+
+  const removeCatBudget = (cur, cat) => {
+    setForm((prev) => {
+      const curEntry = prev[cur]
+      if (!curEntry?.categories?.[cat]) return prev
+      // eslint-disable-next-line no-unused-vars
+      const { [cat]: _drop, ...rest } = curEntry.categories
+      return { ...prev, [cur]: { ...curEntry, categories: rest } }
+    })
   }
 
   const errorMsg = (code) => {
     if (code === 'gte') return t('settings.errorWeekly')
     if (code === 'lte') return t('settings.errorDailyMax')
+    if (code === 'over') return t('settings.errorCatOverCur')
     return t('settings.errorDaily')
+  }
+
+  // For a category row, the same daily-over-weekly rule applies, plus an extra
+  // sanity check: a category limit shouldn't exceed the currency's own limit
+  // for the same period (you can't budget 500 for Food/day when daily-total is
+  // capped at 300). The cross-check only fires once both numbers are valid.
+  const catErrors = (limits, parent) => {
+    const errs = fieldErrors(limits)
+    for (const p of ['daily', 'weekly']) {
+      if (errs[p]) continue
+      const raw = limits?.[p]
+      if (raw === '' || raw == null) continue
+      const num = parseFloat(raw)
+      const parentRaw = parent?.[p]
+      if (parentRaw === '' || parentRaw == null) continue
+      const parentNum = parseFloat(parentRaw)
+      if (!Number.isNaN(num) && !Number.isNaN(parentNum) && parentNum > 0 && num > parentNum) {
+        errs[p] = 'over'
+      }
+    }
+    return errs
   }
 
   const hasErrors = editable.some((c) => {
     const e = fieldErrors(form[c])
-    return e.daily || e.weekly
+    if (e.daily || e.weekly) return true
+    const cats = form[c]?.categories || {}
+    return Object.values(cats).some((cl) => {
+      const ce = catErrors(cl, form[c])
+      return ce.daily || ce.weekly
+    })
   })
 
   const buildBudgets = () => {
@@ -177,6 +406,18 @@ export default function Settings({ user, setUser }) {
         const num = parseFloat(raw)
         if (!Number.isNaN(num) && num > 0) entry[period] = num
       }
+      const cats = {}
+      for (const [cat, cl] of Object.entries(limits?.categories || {})) {
+        const catEntry = {}
+        for (const period of ['daily', 'weekly']) {
+          const raw = cl?.[period]
+          if (raw === '' || raw == null) continue
+          const num = parseFloat(raw)
+          if (!Number.isNaN(num) && num > 0) catEntry[period] = num
+        }
+        if (Object.keys(catEntry).length) cats[cat] = catEntry
+      }
+      if (Object.keys(cats).length) entry.categories = cats
       if (Object.keys(entry).length) out[cur] = entry
     }
     return out
@@ -284,6 +525,20 @@ export default function Settings({ user, setUser }) {
               )}
             </div>
           </div>
+
+          <CategoryBudgets
+            cur={c}
+            curEntry={form[c]}
+            touched={touched}
+            t={t}
+            language={language}
+            errStyle={errStyle}
+            errorMsg={errorMsg}
+            catErrors={catErrors}
+            onChange={setCatLimit}
+            onAdd={addCatBudget}
+            onRemove={removeCatBudget}
+          />
         </div>
         )
       })}

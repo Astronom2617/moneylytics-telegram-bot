@@ -3,24 +3,9 @@ import { X } from 'lucide-react'
 import { createExpense } from '../api.js'
 import { useTranslation } from '../i18n.js'
 import { CURRENCIES, currencySymbol, normalizeCurrency } from '../currency.js'
+import { CATEGORIES } from '../categories.js'
 import BottomSheet from './BottomSheet.jsx'
 import DatePicker from './DatePicker.jsx'
-
-const CATEGORIES = [
-  { id: 'Food',          emoji: '🍕' },
-  { id: 'Transport',     emoji: '🚌' },
-  { id: 'Shopping',      emoji: '🛍' },
-  { id: 'Entertainment', emoji: '🎬' },
-  { id: 'Health',        emoji: '💊' },
-  { id: 'Beauty',        emoji: '💅' },
-  { id: 'Housing',       emoji: '🏠' },
-  { id: 'Utilities',     emoji: '💡' },
-  { id: 'Education',     emoji: '📚' },
-  { id: 'Travel',        emoji: '✈️' },
-  { id: 'Gifts',         emoji: '🎁' },
-  { id: 'Transfer',      emoji: '💸' },
-  { id: 'Other',         emoji: '💰' },
-]
 
 export default function AddExpenseModal({ user, onClose, onAdded }) {
   const pad = (n) => String(n).padStart(2, '0')

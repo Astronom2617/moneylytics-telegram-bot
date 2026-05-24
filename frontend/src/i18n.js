@@ -91,6 +91,10 @@ const dict = {
     // Settings
     'settings.budgets':           'Budgets',
     'settings.budgetsHint':       'Set a limit per currency — leave blank for none.',
+    'settings.byCategory':        'By category',
+    'settings.byCategoryHint':    'Optional per-category limits within this currency.',
+    'settings.addCategoryBudget': 'Add category limit',
+    'settings.errorCatOverCur':   "Category limit can't exceed currency limit",
     'settings.dailyLimit':        'Daily limit',
     'settings.weeklyLimit':       'Weekly limit',
     'settings.noLimit':           'No limit',
@@ -225,6 +229,10 @@ const dict = {
 
     'settings.budgets':           'Бюджеты',
     'settings.budgetsHint':       'Лимит для каждой валюты — пусто означает без лимита.',
+    'settings.byCategory':        'По категориям',
+    'settings.byCategoryHint':    'Необязательные лимиты для отдельных категорий в этой валюте.',
+    'settings.addCategoryBudget': 'Добавить лимит категории',
+    'settings.errorCatOverCur':   'Лимит категории не может превышать общий лимит',
     'settings.dailyLimit':        'Дневной лимит',
     'settings.weeklyLimit':       'Недельный лимит',
     'settings.noLimit':           'Без лимита',
@@ -357,6 +365,10 @@ const dict = {
 
     'settings.budgets':           'Бюджети',
     'settings.budgetsHint':       'Ліміт для кожної валюти — порожньо означає без ліміту.',
+    'settings.byCategory':        'За категоріями',
+    'settings.byCategoryHint':    'Необов’язкові ліміти для окремих категорій у цій валюті.',
+    'settings.addCategoryBudget': 'Додати ліміт категорії',
+    'settings.errorCatOverCur':   'Ліміт категорії не може перевищувати загальний ліміт',
     'settings.dailyLimit':        'Денний ліміт',
     'settings.weeklyLimit':       'Тижневий ліміт',
     'settings.noLimit':           'Без ліміту',

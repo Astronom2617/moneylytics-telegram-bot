@@ -9,31 +9,9 @@ import Avatar from '../components/Avatar.jsx'
 import UserProfileSheet from '../components/UserProfileSheet.jsx'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 import { useFabCollapse } from '../useFabCollapse.js'
+import { CATEGORY_COLORS, CATEGORY_EMOJI, capCat as capCatShared } from '../categories.js'
 
 const TG_PHOTO_URL = window.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url ?? null
-
-const CATEGORY_COLORS = {
-  Food: '#F59E0B',
-  Transport: '#3B82F6',
-  Shopping: '#EC4899',
-  Entertainment: '#8B5CF6',
-  Health: '#22C55E',
-  Beauty: '#D946EF',
-  Housing: '#F97316',
-  Utilities: '#06B6D4',
-  Education: '#6366F1',
-  Travel: '#14B8A6',
-  Gifts: '#EF4444',
-  Transfer: '#0EA5E9',
-  Other: '#94A3B8',
-}
-
-const CATEGORY_EMOJI = {
-  Food: '🍕', Transport: '🚌', Shopping: '🛍',
-  Entertainment: '🎬', Health: '💊', Beauty: '💅', Housing: '🏠',
-  Utilities: '💡', Education: '📚', Travel: '✈️',
-  Gifts: '🎁', Transfer: '💸', Other: '💰',
-}
 
 const SECTION_LABEL = {
   fontSize: 13, fontWeight: 600,
@@ -44,9 +22,7 @@ const SECTION_LABEL = {
   marginTop: 8,
 }
 
-function capCat(cat) {
-  return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase()
-}
+const capCat = capCatShared
 
 function ymd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -135,16 +111,58 @@ function BudgetRow({ label, spent, limit, symbol, t }) {
   )
 }
 
+// Compact per-category progress row: emoji + name on the left, spent/limit
+// on the right, thin bar below. One row per (category, period); rows with
+// no configured limit are skipped before reaching this component.
+function CategoryBudgetRow({ catId, period, spent, limit, symbol, t, lang }) {
+  const pct = Math.min((spent / limit) * 100, 100)
+  const color = pct < 70 ? 'var(--success)' : pct < 95 ? 'var(--accent)' : 'var(--danger)'
+  const cap = capCat(catId)
+  const emoji = CATEGORY_EMOJI[cap] ?? '💰'
+  const periodLabel = period === 'daily' ? t('dashboard.today') : t('dashboard.thisWeek')
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <span style={{ fontSize: 14 }}>{emoji}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {translateCategory(catId, lang)}
+          </span>
+          <span style={{ color: 'var(--tg-theme-hint-color)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+            · {periodLabel}
+          </span>
+        </span>
+        <span className="amount" style={{ fontSize: 12, flexShrink: 0 }}>
+          <span style={{ fontWeight: 600 }}>{symbol}{money(spent)}</span>
+          <span style={{ color: 'var(--tg-theme-hint-color)' }}> / {symbol}{money(limit)}</span>
+        </span>
+      </div>
+      <div className="progress-bar" style={{ height: 4, marginTop: 4 }}>
+        <div className="progress-fill" style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  )
+}
+
 // One card per currency that actually has a limit. Currencies without a
 // budget are skipped entirely — no empty placeholders — and the whole
 // section disappears when nothing is configured.
-function Budgets({ budgets, stats, primary, t }) {
+function Budgets({ budgets, stats, primary, t, lang }) {
+  const hasAny = (b) => {
+    if (!b) return false
+    if (b.daily || b.weekly) return true
+    const cats = b.categories || {}
+    return Object.values(cats).some((cl) => cl?.daily || cl?.weekly)
+  }
   const order = [primary, ...Object.keys(budgets).filter((c) => c !== primary)]
   const cards = order
-    .filter((c) => budgets[c] && (budgets[c].daily || budgets[c].weekly))
+    .filter((c) => hasAny(budgets[c]))
     .map((c) => {
       const b = budgets[c]
       const sym = currencySymbol(c)
+      const catBudgets = b.categories || {}
+      const todayCats = (stats.by_category_today || {})[c] || {}
+      const weekCats = (stats.by_category_week || {})[c] || {}
       return (
         <div key={c} className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -174,6 +192,32 @@ function Budgets({ budgets, stats, primary, t }) {
               t={t}
             />
           ) : null}
+
+          {Object.keys(catBudgets).length > 0 && (
+            <div style={{
+              marginTop: 12, paddingTop: 10,
+              borderTop: '1px solid var(--tg-theme-secondary-bg-color)',
+            }}>
+              {Object.entries(catBudgets).flatMap(([catId, cl]) => {
+                const rows = []
+                if (cl?.daily) rows.push(
+                  <CategoryBudgetRow
+                    key={`${catId}-d`} catId={catId} period="daily"
+                    spent={todayCats[catId] || 0} limit={cl.daily}
+                    symbol={sym} t={t} lang={lang}
+                  />
+                )
+                if (cl?.weekly) rows.push(
+                  <CategoryBudgetRow
+                    key={`${catId}-w`} catId={catId} period="weekly"
+                    spent={weekCats[catId] || 0} limit={cl.weekly}
+                    symbol={sym} t={t} lang={lang}
+                  />
+                )
+                return rows
+              })}
+            </div>
+          )}
         </div>
       )
     })
@@ -402,7 +446,7 @@ export default function Dashboard({ user }) {
             </div>
           </div>
 
-          <Budgets budgets={budgets} stats={stats} primary={cur} t={t} />
+          <Budgets budgets={budgets} stats={stats} primary={cur} t={t} lang={lang} />
 
           {Object.keys(stats.today || {}).length === 0 && (
             <p style={{ fontSize: 13, color: 'var(--success)', textAlign: 'center', margin: '4px 0 12px' }}>

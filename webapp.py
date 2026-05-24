@@ -506,6 +506,22 @@ def get_stats(
         for c in {cur for (_, cur) in sums}
     }
 
+    # Per-category totals bucketed by currency, for both the day and the week
+    # — drives the per-category budget progress bars on the Dashboard. Empty
+    # buckets are omitted so the frontend can do a simple lookup with default 0.
+    def cat_totals_since(dt):
+        rows = db.query(
+            Expense.currency, Expense.category, func.sum(Expense.amount)
+        ).filter(
+            and_(Expense.user_id == user_id, Expense.created_at >= dt)
+        ).group_by(Expense.currency, Expense.category).all()
+        out: dict[str, dict[str, float]] = {}
+        for cur, cat, total in rows:
+            cur_k = cur or "EUR"
+            cat_k = (cat or "other").lower()
+            out.setdefault(cur_k, {})[cat_k] = round(float(total or 0.0), 2)
+        return out
+
     return {
         "today": totals_by_currency_since(today_start),
         "week":  totals_by_currency_since(week_start),
@@ -515,6 +531,8 @@ def get_stats(
         "count_month": count_since(month_start),
         "currencies":  currencies,
         "by_category":  [{"category": row.category, "total": round(row.total, 2)} for row in by_category],
+        "by_category_today": cat_totals_since(today_start),
+        "by_category_week":  cat_totals_since(week_start),
         "daily_last_7": daily,
         "daily_by_currency": daily_by_currency,
     }
@@ -569,29 +587,57 @@ def get_user(user_id: int = Depends(get_current_user_id), db: Session = Depends(
 
 
 _KNOWN_CURRENCIES = ("EUR", "USD", "UAH", "GBP")
+_KNOWN_CATEGORIES = (
+    "food", "transport", "shopping", "entertainment", "health", "beauty",
+    "housing", "utilities", "education", "travel", "gifts", "transfer", "other",
+)
+
+
+def _clean_period_entry(raw) -> dict:
+    """Extract daily/weekly positive numeric limits from one budget entry.
+    Returns {} on garbage so callers can decide whether to drop the parent."""
+    entry = {}
+    if not isinstance(raw, dict):
+        return entry
+    for period in ("daily", "weekly"):
+        value = raw.get(period)
+        if value in (None, ""):
+            continue
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            entry[period] = round(value, 2)
+    return entry
 
 
 def _clean_budgets(raw) -> dict:
-    """Validate the incoming per-currency budget map. Drops unknown
-    currencies, non-positive/invalid limits, and empty currency entries
-    so the stored shape stays {cur: {daily?: float, weekly?: float}}."""
+    """Validate the incoming budget map. Per-currency shape is
+        {cur: {daily?, weekly?, categories?: {cat: {daily?, weekly?}}}}
+    — overall + per-category limits coexist under the same currency.
+    Unknown currencies/categories and non-positive limits are dropped."""
     if not isinstance(raw, dict):
         return {}
     clean = {}
     for cur, limits in raw.items():
         if cur not in _KNOWN_CURRENCIES or not isinstance(limits, dict):
             continue
-        entry = {}
-        for period in ("daily", "weekly"):
-            value = limits.get(period)
-            if value in (None, ""):
-                continue
-            try:
-                value = float(value)
-            except (TypeError, ValueError):
-                continue
-            if value > 0:
-                entry[period] = round(value, 2)
+        entry = _clean_period_entry(limits)
+        cats_raw = limits.get("categories")
+        cats = {}
+        if isinstance(cats_raw, dict):
+            for cat, cat_limits in cats_raw.items():
+                if not isinstance(cat, str):
+                    continue
+                cat_key = cat.lower()
+                if cat_key not in _KNOWN_CATEGORIES:
+                    continue
+                cat_entry = _clean_period_entry(cat_limits)
+                if cat_entry:
+                    cats[cat_key] = cat_entry
+        if cats:
+            entry["categories"] = cats
         if entry:
             clean[cur] = entry
     return clean
