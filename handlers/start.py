@@ -18,6 +18,11 @@ async def command_start_handler(message: Message, state: FSMContext) -> None:
     with get_session() as session:
         user = session.query(User).filter(User.id == message.from_user.id).first()
         if user:
+            # Receiving any message means Telegram delivered ours — so if we
+            # previously marked them blocked, that flag is stale. Clear it.
+            if user.is_blocked:
+                user.is_blocked = False
+                session.commit()
             lang = get_user_language(user, detect_language(message.from_user.language_code))
             await message.answer(
                 t(lang, "start.welcome_back", name=html.bold(message.from_user.full_name)),

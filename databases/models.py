@@ -22,6 +22,10 @@ class User(Base):
     weekly_over_limit_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     # Fernet-encrypted Monobank personal token. Never stored or logged raw.
     mono_token: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # True once the user has blocked the bot or their account is gone — set
+    # by the broadcast loop on TelegramForbiddenError. Cleared again on the
+    # next /start, since sending a message means they unblocked us.
+    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     def budget_for(self, currency: str | None, period: str) -> float | None:
         """Limit for a currency/period ('daily'|'weekly'), or None if unset."""

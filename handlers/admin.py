@@ -3,6 +3,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 from os import getenv
 from datetime import datetime, timedelta
 from sqlalchemy import func
@@ -184,10 +185,14 @@ def _collect_stats():
     week_start = today_start - timedelta(days=7)
 
     with get_session() as s:
-        total_users = s.query(func.count(User.id)).scalar() or 0
-        new_7d = s.query(func.count(User.id)).filter(User.created_at > week_ago).scalar() or 0
-        new_24h = s.query(func.count(User.id)).filter(User.created_at > day_ago).scalar() or 0
-        with_mono = s.query(func.count(User.id)).filter(User.mono_token.isnot(None)).scalar() or 0
+        # "Reachable" base — excludes users who blocked the bot. Stats below
+        # use this so activation/DAU percentages reflect the real audience.
+        reachable = s.query(User).filter(User.is_blocked == False)  # noqa: E712
+        total_users = reachable.with_entities(func.count(User.id)).scalar() or 0
+        new_7d = reachable.with_entities(func.count(User.id)).filter(User.created_at > week_ago).scalar() or 0
+        new_24h = reachable.with_entities(func.count(User.id)).filter(User.created_at > day_ago).scalar() or 0
+        with_mono = reachable.with_entities(func.count(User.id)).filter(User.mono_token.isnot(None)).scalar() or 0
+        blocked = s.query(func.count(User.id)).filter(User.is_blocked == True).scalar() or 0  # noqa: E712
         total_expenses = s.query(func.count(Expense.id)).scalar() or 0
         dau = s.query(func.count(func.distinct(Expense.user_id))).filter(
             Expense.created_at >= today_start
@@ -197,8 +202,13 @@ def _collect_stats():
         ).scalar() or 0
 
         # Language breakdown — drives the broadcast audience selector and
-        # tells us where engagement actually lives.
-        lang_rows = s.query(User.language, func.count(User.id)).group_by(User.language).all()
+        # tells us where engagement actually lives. Reachable only.
+        lang_rows = (
+            s.query(User.language, func.count(User.id))
+            .filter(User.is_blocked == False)  # noqa: E712
+            .group_by(User.language)
+            .all()
+        )
         by_lang = {(row[0] or "en"): int(row[1]) for row in lang_rows}
 
         # Top spenders by expense count — these are the people whose churn
@@ -232,6 +242,7 @@ def _collect_stats():
         "by_lang": by_lang,
         "top": top,
         "active_users": active_users,
+        "blocked": blocked,
     }
 
 
@@ -243,9 +254,10 @@ def _format_stats(s: dict) -> str:
     lines = [
         "📊 <b>Статистика</b>",
         "",
-        f"👥 Всего юзеров: <b>{s['total_users']}</b>",
+        f"👥 Достижимых юзеров: <b>{s['total_users']}</b>",
         f"   ├ за 24ч: <b>+{s['new_24h']}</b>",
-        f"   └ за 7д:  <b>+{s['new_7d']}</b>",
+        f"   ├ за 7д:  <b>+{s['new_7d']}</b>",
+        f"   └ 🚫 заблокировали: <b>{s['blocked']}</b>",
         "",
         f"🟢 Активны сегодня: <b>{s['dau']}</b>",
         f"🟡 Активны за неделю: <b>{s['wau']}</b>",
@@ -327,11 +339,27 @@ def _audience_user_ids(audience: str) -> list[int]:
     if audience == "self":
         return [ADMIN_ID]
     with get_session() as s:
-        q = s.query(User.id)
+        # Skip users who blocked the bot — they raised TelegramForbiddenError
+        # on a previous send. Saves time and keeps the failed count honest.
+        q = s.query(User.id).filter(User.is_blocked == False)  # noqa: E712
         target_lang = _BROADCAST_AUDIENCES.get(audience, {}).get("filter")
         if target_lang and target_lang != "_self":
             q = q.filter(User.language == target_lang)
         return [row[0] for row in q.all()]
+
+
+def _mark_user_blocked(user_id: int) -> None:
+    """Flip the is_blocked flag for a user. Tolerant of missing rows so a
+    transient race (user deleted while we're sending) doesn't crash the
+    whole broadcast."""
+    try:
+        with get_session() as s:
+            user = s.query(User).filter(User.id == user_id).first()
+            if user and not user.is_blocked:
+                user.is_blocked = True
+                s.commit()
+    except Exception:
+        pass
 
 
 @router.message(BroadcastStates.waiting_for_text)
@@ -404,11 +432,25 @@ async def broadcast_confirm(callback: CallbackQuery, state: FSMContext):
         await state.clear()
 
     user_ids = _audience_user_ids(audience)
-    sent, failed = 0, 0
+    sent, failed, blocked = 0, 0, 0
     for user_id in user_ids:
         try:
             await callback.bot.send_message(user_id, text, parse_mode="HTML")
             sent += 1
+        except TelegramForbiddenError:
+            # User blocked the bot or deleted their account — flag them so
+            # we don't keep wasting time on them in future broadcasts.
+            _mark_user_blocked(user_id)
+            failed += 1
+            blocked += 1
+        except TelegramBadRequest as e:
+            # "chat not found" / "user is deactivated" — also a permanent
+            # delivery failure; treat the same as a hard block.
+            msg = str(e).lower()
+            if any(k in msg for k in ("chat not found", "deactivated", "user is blocked")):
+                _mark_user_blocked(user_id)
+                blocked += 1
+            failed += 1
         except Exception:
             failed += 1
 
@@ -419,9 +461,11 @@ async def broadcast_confirm(callback: CallbackQuery, state: FSMContext):
             parse_mode="HTML",
         )
     else:
+        extra = f"\nАудитория: {audience_label}"
+        if blocked:
+            extra += f"\n🚫 Заблокировали бота: <b>{blocked}</b> (помечены)"
         await callback.message.answer(
-            t(lang, "admin.broadcast_done", sent=sent, failed=failed)
-            + f"\nАудитория: {audience_label}",
+            t(lang, "admin.broadcast_done", sent=sent, failed=failed) + extra,
             parse_mode="HTML",
         )
     await callback.answer()

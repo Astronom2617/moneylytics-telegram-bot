@@ -136,6 +136,9 @@ def init_db():
                 conn.execute(text("ALTER TABLE users ADD COLUMN weekly_over_limit_date DATE"))
             if "mono_token" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN mono_token VARCHAR(500)"))
+            if "is_blocked" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN is_blocked BOOLEAN DEFAULT FALSE"))
+                conn.execute(text("UPDATE users SET is_blocked = FALSE WHERE is_blocked IS NULL"))
             conn.execute(text("UPDATE users SET language = 'en' WHERE language IS NULL OR language = ''"))
             _migrate_budgets_to_json(conn, columns)
 
