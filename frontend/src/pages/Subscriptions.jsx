@@ -95,6 +95,7 @@ export default function Subscriptions({ user }) {
           <p style={{
             fontSize: 12, color: 'var(--tg-theme-hint-color)',
             marginTop: 6, maxWidth: 260, lineHeight: 1.4,
+            textAlign: 'center', marginLeft: 'auto', marginRight: 'auto',
           }}>
             {t('subs.emptyHint')}
           </p>
