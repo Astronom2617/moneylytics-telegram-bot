@@ -4,8 +4,11 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from os import getenv
+from datetime import datetime, timedelta
+from sqlalchemy import func
 
 from databases import get_session, User, FeedbackReport
+from databases.models import Expense
 from utils.translations import t, get_user_language
 
 router = Router()
@@ -39,6 +42,10 @@ async def admin_menu(message: Message):
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
+            text=t(lang, "admin.stats_btn"),
+            callback_data="admin:stats"
+        )],
+        [InlineKeyboardButton(
             text=t(lang, "admin.feedbacks_btn", count=unread),
             callback_data="admin:feedbacks:0"
         )],
@@ -55,6 +62,10 @@ async def render_admin_menu(callback: CallbackQuery, lang: str):
         unread = session.query(FeedbackReport).filter(FeedbackReport.is_read == False).count()
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=t(lang, "admin.stats_btn"),
+            callback_data="admin:stats"
+        )],
         [InlineKeyboardButton(
             text=t(lang, "admin.feedbacks_btn", count=unread),
             callback_data="admin:feedbacks:0"
@@ -163,6 +174,122 @@ async def back_to_menu(callback: CallbackQuery):
     await render_admin_menu(callback, lang)
 
 
+def _collect_stats():
+    """Single DB pass for the admin pulse panel. Mirrors the Dataclip query
+    so the in-Telegram view stays consistent with the dashboard one."""
+    now = datetime.now()
+    day_ago = now - timedelta(days=1)
+    week_ago = now - timedelta(days=7)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+
+    with get_session() as s:
+        total_users = s.query(func.count(User.id)).scalar() or 0
+        new_7d = s.query(func.count(User.id)).filter(User.created_at > week_ago).scalar() or 0
+        new_24h = s.query(func.count(User.id)).filter(User.created_at > day_ago).scalar() or 0
+        with_mono = s.query(func.count(User.id)).filter(User.mono_token.isnot(None)).scalar() or 0
+        total_expenses = s.query(func.count(Expense.id)).scalar() or 0
+        dau = s.query(func.count(func.distinct(Expense.user_id))).filter(
+            Expense.created_at >= today_start
+        ).scalar() or 0
+        wau = s.query(func.count(func.distinct(Expense.user_id))).filter(
+            Expense.created_at >= week_start
+        ).scalar() or 0
+
+        # Language breakdown — drives the broadcast audience selector and
+        # tells us where engagement actually lives.
+        lang_rows = s.query(User.language, func.count(User.id)).group_by(User.language).all()
+        by_lang = {(row[0] or "en"): int(row[1]) for row in lang_rows}
+
+        # Top spenders by expense count — these are the people whose churn
+        # would hurt the most.
+        top_rows = (
+            s.query(User, func.count(Expense.id).label("cnt"))
+            .outerjoin(Expense, Expense.user_id == User.id)
+            .group_by(User.id)
+            .order_by(func.count(Expense.id).desc())
+            .limit(5)
+            .all()
+        )
+        top = []
+        for u, cnt in top_rows:
+            if not cnt:
+                continue
+            name = f"@{u.username}" if u.username else (u.first_name or str(u.id))
+            top.append((name, int(cnt), bool(u.mono_token)))
+
+        # Activation funnel: of all users, how many made at least one expense.
+        active_users = s.query(func.count(func.distinct(Expense.user_id))).scalar() or 0
+
+    return {
+        "total_users": total_users,
+        "new_7d": new_7d,
+        "new_24h": new_24h,
+        "with_mono": with_mono,
+        "total_expenses": total_expenses,
+        "dau": dau,
+        "wau": wau,
+        "by_lang": by_lang,
+        "top": top,
+        "active_users": active_users,
+    }
+
+
+def _format_stats(s: dict) -> str:
+    """Compact monospace-friendly stats card. Activation% surfaced explicitly
+    because that's the metric most likely to move with onboarding tweaks."""
+    activation = (s["active_users"] / s["total_users"] * 100) if s["total_users"] else 0
+    mono_pct = (s["with_mono"] / s["total_users"] * 100) if s["total_users"] else 0
+    lines = [
+        "📊 <b>Статистика</b>",
+        "",
+        f"👥 Всего юзеров: <b>{s['total_users']}</b>",
+        f"   ├ за 24ч: <b>+{s['new_24h']}</b>",
+        f"   └ за 7д:  <b>+{s['new_7d']}</b>",
+        "",
+        f"🟢 Активны сегодня: <b>{s['dau']}</b>",
+        f"🟡 Активны за неделю: <b>{s['wau']}</b>",
+        f"💸 Всего расходов: <b>{s['total_expenses']}</b>",
+        "",
+        f"📈 Активация: <b>{activation:.0f}%</b> ({s['active_users']}/{s['total_users']})",
+        f"🏦 С Monobank: <b>{s['with_mono']}</b> ({mono_pct:.0f}%)",
+        "",
+        "🌐 <b>По языкам:</b> " + " · ".join(
+            f"{flag}{n}" for flag, n in zip(
+                ["🇷🇺", "🇺🇦", "🇬🇧"],
+                [s["by_lang"].get("ru", 0), s["by_lang"].get("uk", 0), s["by_lang"].get("en", 0)],
+            )
+        ),
+    ]
+    if s["top"]:
+        lines.append("")
+        lines.append("🏆 <b>Топ-юзеры:</b>")
+        for i, (name, cnt, has_mono) in enumerate(s["top"], 1):
+            mono_mark = " 🏦" if has_mono else ""
+            lines.append(f"   {i}. {name}{mono_mark} — {cnt}")
+    return "\n".join(lines)
+
+
+@router.callback_query(F.data == "admin:stats")
+async def show_stats(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    lang = get_admin_lang()
+    stats = _collect_stats()
+    text = _format_stats(stats)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 " + t(lang, "admin.refresh"), callback_data="admin:stats")],
+        [InlineKeyboardButton(text=t(lang, "admin.back"), callback_data="admin:menu")],
+    ])
+    try:
+        await callback.message.edit_text(text, reply_markup=keyboard)
+    except Exception:
+        # Telegram errors when edit_text would produce identical content;
+        # we still want the user to see they tapped Refresh.
+        pass
+    await callback.answer()
+
+
 @router.callback_query(F.data == "admin:broadcast")
 async def broadcast_start(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
@@ -184,6 +311,29 @@ async def broadcast_force_cancel(message: Message, state: FSMContext):
     await message.answer(t(lang, "admin.broadcast_cancelled"))
 
 
+# Audience presets for broadcast. Order matters — drives the button row layout.
+# 'self' is a tiny dry-run that targets just the admin so they can sanity-check
+# rendering (HTML tags, line breaks, emojis) before blasting everyone.
+_BROADCAST_AUDIENCES = {
+    "all":  {"label": "📢 Всем",      "filter": None},
+    "ru":   {"label": "🇷🇺 RU",      "filter": "ru"},
+    "uk":   {"label": "🇺🇦 UK",      "filter": "uk"},
+    "en":   {"label": "🇬🇧 EN",      "filter": "en"},
+    "self": {"label": "🧪 Себе",     "filter": "_self"},
+}
+
+
+def _audience_user_ids(audience: str) -> list[int]:
+    if audience == "self":
+        return [ADMIN_ID]
+    with get_session() as s:
+        q = s.query(User.id)
+        target_lang = _BROADCAST_AUDIENCES.get(audience, {}).get("filter")
+        if target_lang and target_lang != "_self":
+            q = q.filter(User.language == target_lang)
+        return [row[0] for row in q.all()]
+
+
 @router.message(BroadcastStates.waiting_for_text)
 async def broadcast_preview(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id):
@@ -192,42 +342,88 @@ async def broadcast_preview(message: Message, state: FSMContext):
     lang = get_admin_lang()
     await state.update_data(broadcast_text=message.text)
 
-    with get_session() as session:
-        user_count = session.query(User).count()
+    # Show per-audience counts up-front so the admin can compare segment
+    # sizes before picking a target. "Себе" always shows 1.
+    counts = {key: len(_audience_user_ids(key)) for key in _BROADCAST_AUDIENCES}
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text=t(lang, "admin.broadcast_send"), callback_data="admin:broadcast_confirm"),
-        InlineKeyboardButton(text=t(lang, "admin.broadcast_cancel_btn"), callback_data="admin:broadcast_cancel"),
-    ]])
+    # First row: bulk audiences. Second row: per-language. Third row: test+cancel.
+    rows = [
+        [InlineKeyboardButton(
+            text=f"{_BROADCAST_AUDIENCES['all']['label']} ({counts['all']})",
+            callback_data="admin:broadcast_send:all",
+        )],
+        [
+            InlineKeyboardButton(
+                text=f"{_BROADCAST_AUDIENCES['ru']['label']} ({counts['ru']})",
+                callback_data="admin:broadcast_send:ru",
+            ),
+            InlineKeyboardButton(
+                text=f"{_BROADCAST_AUDIENCES['uk']['label']} ({counts['uk']})",
+                callback_data="admin:broadcast_send:uk",
+            ),
+            InlineKeyboardButton(
+                text=f"{_BROADCAST_AUDIENCES['en']['label']} ({counts['en']})",
+                callback_data="admin:broadcast_send:en",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text=_BROADCAST_AUDIENCES['self']['label'],
+                callback_data="admin:broadcast_send:self",
+            ),
+            InlineKeyboardButton(
+                text=t(lang, "admin.broadcast_cancel_btn"),
+                callback_data="admin:broadcast_cancel",
+            ),
+        ],
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
 
     await message.answer(
-        t(lang, "admin.broadcast_preview", text=message.text, count=user_count),
-        reply_markup=keyboard
+        t(lang, "admin.broadcast_preview", text=message.text, count=counts["all"]),
+        reply_markup=keyboard,
+        parse_mode="HTML",
     )
 
 
-@router.callback_query(F.data == "admin:broadcast_confirm")
+@router.callback_query(F.data.startswith("admin:broadcast_send:"))
 async def broadcast_confirm(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
         return
 
     lang = get_admin_lang()
+    audience = callback.data.split(":")[2]
     data = await state.get_data()
     text = data.get("broadcast_text", "")
-    await state.clear()
+    if not text:
+        await callback.answer("No text in state", show_alert=True)
+        return
 
-    with get_session() as session:
-        user_ids = [u.id for u in session.query(User).all()]
+    # Self-test keeps the FSM so the admin can iterate; everything else clears.
+    if audience != "self":
+        await state.clear()
 
+    user_ids = _audience_user_ids(audience)
     sent, failed = 0, 0
     for user_id in user_ids:
         try:
-            await callback.bot.send_message(user_id, text)
+            await callback.bot.send_message(user_id, text, parse_mode="HTML")
             sent += 1
         except Exception:
             failed += 1
 
-    await callback.message.answer(t(lang, "admin.broadcast_done", sent=sent, failed=failed))
+    audience_label = _BROADCAST_AUDIENCES.get(audience, {}).get("label", audience)
+    if audience == "self":
+        await callback.message.answer(
+            f"🧪 Тестовая отправка ({audience_label})\nОтправлено: <b>{sent}</b>",
+            parse_mode="HTML",
+        )
+    else:
+        await callback.message.answer(
+            t(lang, "admin.broadcast_done", sent=sent, failed=failed)
+            + f"\nАудитория: {audience_label}",
+            parse_mode="HTML",
+        )
     await callback.answer()
 
 
