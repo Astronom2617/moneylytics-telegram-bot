@@ -225,9 +225,11 @@ export default function History({ user }) {
 
   useEffect(() => { load() }, [load])
 
-  // Optimistic delete with a 4-second undo window. We remove the row from
+  // Optimistic delete with a 5-second undo window. We remove the row from
   // local state right away so the UI feels instant, then either fire the
-  // real DELETE on timeout or restore the row if the user taps Undo.
+  // real DELETE on timeout or restore the row if the user taps Undo. The
+  // toast renders a draining progress bar matching this duration.
+  const UNDO_MS = 5000
   const queueDelete = (expense) => {
     if (pendingDeletes.current.has(expense.id)) return
     setExpenses((prev) => prev.filter((e) => e.id !== expense.id))
@@ -247,13 +249,13 @@ export default function History({ user }) {
           return [...prev, expense].sort((a, b) => b.created_at.localeCompare(a.created_at))
         })
       }
-    }, 4000)
+    }, UNDO_MS)
     pendingDeletes.current.set(expense.id, { timer, expense })
 
     showToast({
       message: t('history.deleted'),
       actionLabel: t('history.undo'),
-      duration: 4000,
+      duration: UNDO_MS,
       onAction: () => {
         const entry = pendingDeletes.current.get(expense.id)
         if (!entry) return

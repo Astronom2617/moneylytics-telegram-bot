@@ -170,6 +170,7 @@ export default function Analytics({ user }) {
               onChange={pickTo}
               language={lang}
               maxDate={todayYMD()}
+              align="right"
             />
           </div>
         </div>

@@ -35,6 +35,7 @@ export function showToast({ message, actionLabel, onAction, duration = 4000 }) {
     message,
     actionLabel,
     onAction,
+    duration,
   }
   emit()
   if (duration > 0) {
@@ -85,6 +86,16 @@ export function ToastHost() {
         >
           {toast.actionLabel}
         </button>
+      )}
+      {/* Draining progress bar — width animates from 100% to 0% over the
+          toast's duration. Keying on toast.id restarts the animation each
+          time a new toast replaces the previous one. */}
+      {toast.duration > 0 && (
+        <span
+          key={toast.id}
+          className="toast-progress"
+          style={{ animationDuration: `${toast.duration}ms` }}
+        />
       )}
     </div>
   )

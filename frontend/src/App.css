@@ -548,7 +548,12 @@ html, body, #root {
   z-index: 50;
   top: calc(100% + 6px);
   left: 0;
-  right: 0;
+  /* Stays at least a usable size even when the input is in a narrow column
+     (e.g. the two-column custom-range row on Analytics). Falls back to the
+     full input width when there's room. */
+  min-width: 280px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
   padding: 14px;
   border-radius: var(--radius-md);
   background: var(--tg-theme-bg-color);
@@ -556,6 +561,13 @@ html, body, #root {
   box-shadow: var(--shadow-card);
   animation: dp-fade var(--t-fast);
 }
+/* When the input sits on the right edge of the screen, anchor the popover
+   by its right side instead so it grows leftwards and stays on-screen. */
+.dp-pop.dp-pop-right {
+  left: auto;
+  right: 0;
+}
+.dp-day { font-size: 14px; min-height: 32px; }
 @keyframes dp-fade {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -712,40 +724,77 @@ html, body, #root {
 .swipe-row-content.swiping { transition: none; }
 
 /* ── Toast ────────────────────────────────────────────────────────────────── */
+/* Always-dark pill so the toast reads the same in light/dark Telegram. The
+   action button is a small contained accent chip — gradient, white text,
+   distinct from the message so the tap target reads as "the button". */
 .toast {
   position: fixed;
   left: 50%;
   bottom: calc(80px + var(--safe-bottom));
   transform: translateX(-50%) translateY(20px);
-  background: var(--tg-theme-text-color);
-  color: var(--tg-theme-bg-color);
-  border-radius: 12px;
-  padding: 10px 14px;
+  background: #1f1d2b;
+  color: #f3f3f6;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 10px 10px 10px 16px;
   font-size: 14px;
   font-weight: 500;
+  line-height: 1.3;
   display: flex;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+  gap: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.2);
   z-index: 300;
   opacity: 0;
-  transition: transform 0.25s ease, opacity 0.25s ease;
+  transition: transform 0.28s cubic-bezier(.2,.8,.2,1), opacity 0.2s ease;
   max-width: calc(100vw - 32px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .toast.shown {
   transform: translateX(-50%) translateY(0);
   opacity: 1;
 }
 .toast-action {
-  background: transparent;
-  color: var(--accent);
+  background: var(--accent-gradient);
+  color: #ffffff;
   border: none;
-  font-weight: 700;
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(108,99,255,0.4);
+  transition: transform var(--t-fast), box-shadow var(--t-fast), opacity var(--t-fast);
+  white-space: nowrap;
 }
-.toast-action:active { opacity: 0.7; }
+.toast-action:active {
+  transform: scale(0.94);
+  box-shadow: 0 2px 6px rgba(108,99,255,0.3);
+}
+
+/* Thin draining line along the bottom edge — keyed by the toast id, so a
+   new toast restarts the animation from full width. */
+.toast {
+  overflow: hidden;
+}
+.toast-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--accent-gradient);
+  border-radius: 0 0 14px 14px;
+  transform-origin: left center;
+  animation-name: toast-drain;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  opacity: 0.85;
+}
+@keyframes toast-drain {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}

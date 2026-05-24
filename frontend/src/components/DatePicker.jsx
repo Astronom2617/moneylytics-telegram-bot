@@ -17,7 +17,7 @@ const sameDay = (a, b) =>
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate()
 
-export default function DatePicker({ value, onChange, language, maxDate }) {
+export default function DatePicker({ value, onChange, language, maxDate, align = 'left' }) {
   const [open, setOpen] = useState(false)
   const [slideDir, setSlideDir] = useState(0)
   const ref = useRef(null)
@@ -92,7 +92,7 @@ export default function DatePicker({ value, onChange, language, maxDate }) {
       </button>
 
       {open && (
-        <div className="dp-pop">
+        <div className={`dp-pop${align === 'right' ? ' dp-pop-right' : ''}`}>
           <div className="dp-head">
             <button type="button" className="dp-nav" onClick={() => goMonth(-1)} aria-label="Previous month">
               <ChevronLeft size={18} />
