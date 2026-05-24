@@ -1,13 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Plus, X } from 'lucide-react'
 import { getExpenses, deleteExpense, updateExpense } from '../api.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
 import BottomSheet from '../components/BottomSheet.jsx'
 import ExpenseDetailModal from '../components/ExpenseDetailModal.jsx'
 import DatePicker from '../components/DatePicker.jsx'
+import SwipeableRow from '../components/SwipeableRow.jsx'
+import { ListSkeleton } from '../components/Skeleton.jsx'
+import { showToast } from '../components/Toast.jsx'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 import { currencySymbol } from '../currency.js'
 import { useFabCollapse } from '../useFabCollapse.js'
+import { impact, notify, selection } from '../haptic.js'
 
 const PERIOD_IDS = ['today', 'week', 'month', 'all']
 
@@ -201,6 +205,10 @@ export default function History({ user }) {
   const [selected,    setSelected]    = useState(null)
   const [editing,     setEditing]     = useState(null)
   const fabCollapsed = useFabCollapse()
+  // Pending deletes: maps expense.id → { timer, expense }. The DELETE request
+  // doesn't fire until the toast's grace period expires, so Undo just cancels
+  // the timer and re-inserts the row in its original position.
+  const pendingDeletes = useRef(new Map())
 
   const lang = user?.language ?? 'en'
   const cur = user?.currency ?? 'EUR'
@@ -217,19 +225,68 @@ export default function History({ user }) {
 
   useEffect(() => { load() }, [load])
 
-  const handleDelete = async (id) => {
-    if (!window.confirm(t('history.confirmDelete'))) return
-    setDeletingId(id)
-    try {
-      await deleteExpense(id)
-      setExpenses((prev) => prev.filter((e) => e.id !== id))
-      setSelected(null)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setDeletingId(null)
-    }
+  // Optimistic delete with a 4-second undo window. We remove the row from
+  // local state right away so the UI feels instant, then either fire the
+  // real DELETE on timeout or restore the row if the user taps Undo.
+  const queueDelete = (expense) => {
+    if (pendingDeletes.current.has(expense.id)) return
+    setExpenses((prev) => prev.filter((e) => e.id !== expense.id))
+    setSelected(null)
+    impact('medium')
+
+    const timer = setTimeout(async () => {
+      pendingDeletes.current.delete(expense.id)
+      try {
+        await deleteExpense(expense.id)
+      } catch (err) {
+        // Server refused — put the row back so we don't silently lose data.
+        console.error(err)
+        notify('error')
+        setExpenses((prev) => {
+          if (prev.some((e) => e.id === expense.id)) return prev
+          return [...prev, expense].sort((a, b) => b.created_at.localeCompare(a.created_at))
+        })
+      }
+    }, 4000)
+    pendingDeletes.current.set(expense.id, { timer, expense })
+
+    showToast({
+      message: t('history.deleted'),
+      actionLabel: t('history.undo'),
+      duration: 4000,
+      onAction: () => {
+        const entry = pendingDeletes.current.get(expense.id)
+        if (!entry) return
+        clearTimeout(entry.timer)
+        pendingDeletes.current.delete(expense.id)
+        setExpenses((prev) => {
+          if (prev.some((e) => e.id === expense.id)) return prev
+          return [...prev, expense].sort((a, b) => b.created_at.localeCompare(a.created_at))
+        })
+        impact('light')
+      },
+    })
   }
+
+  // Old-style delete from the detail modal still goes through the same path
+  // — keeps a single source of truth for delete UX.
+  const handleDelete = async (id) => {
+    const expense = expenses.find((e) => e.id === id)
+    if (!expense) return
+    setDeletingId(id)
+    queueDelete(expense)
+    setDeletingId(null)
+  }
+
+  // Flush any pending deletes on unmount so they aren't lost if the user
+  // closes the app within the 4-sec window.
+  useEffect(() => () => {
+    for (const { timer, expense } of pendingDeletes.current.values()) {
+      clearTimeout(timer)
+      deleteExpense(expense.id).catch(() => {})
+    }
+    pendingDeletes.current.clear()
+  }, [])
 
   const handleSaved = (updated) => {
     setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
@@ -262,7 +319,7 @@ export default function History({ user }) {
           <button
             key={id}
             className={`period-tab ${period === id ? 'active' : ''}`}
-            onClick={() => setPeriod(id)}
+            onClick={() => { if (period !== id) selection(); setPeriod(id) }}
           >
             {t(`period.${id}`)}
           </button>
@@ -270,9 +327,7 @@ export default function History({ user }) {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
-          <div className="spinner" />
-        </div>
+        <ListSkeleton rows={6} />
       ) : expenses.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">📭</div>
@@ -298,9 +353,16 @@ export default function History({ user }) {
               {formatDate(date, t)}
             </p>
 
-            <div className="card" style={{ padding: '4px 0' }}>
+            {/* Each row is its own swipeable container so swipe-to-delete
+                works per item. Visually they still group via a shared
+                background + thin dividers, keeping the original look. */}
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               {items.map((e, i) => (
-                <div key={e.id}>
+                <SwipeableRow
+                  key={e.id}
+                  label={t('history.delete').split(' ')[0]}
+                  onDelete={() => queueDelete(e)}
+                >
                   <div
                     onClick={() => setSelected(e)}
                     style={{
@@ -351,11 +413,10 @@ export default function History({ user }) {
                       )}
                     </div>
                   </div>
-
                   {i < items.length - 1 && (
                     <div style={{ height: 1, background: 'var(--tg-theme-bg-color)', marginLeft: 68 }} />
                   )}
-                </div>
+                </SwipeableRow>
               ))}
             </div>
           </div>
@@ -364,7 +425,7 @@ export default function History({ user }) {
 
       <button
         className={`fab${fabCollapsed ? ' collapsed' : ''}`}
-        onClick={() => setShowModal(true)}
+        onClick={() => { impact('light'); setShowModal(true) }}
         aria-label={t('common.addExpense')}
       >
         <Plus size={24} />

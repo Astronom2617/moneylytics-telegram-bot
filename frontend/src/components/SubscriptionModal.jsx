@@ -4,6 +4,7 @@ import { createSubscription, updateSubscription } from '../api.js'
 import { useTranslation } from '../i18n.js'
 import { CURRENCIES, currencySymbol, normalizeCurrency } from '../currency.js'
 import { CATEGORIES } from '../categories.js'
+import { notify } from '../haptic.js'
 import BottomSheet from './BottomSheet.jsx'
 import DatePicker from './DatePicker.jsx'
 
@@ -52,9 +53,11 @@ export default function SubscriptionModal({ user, sub, onClose, onSaved }) {
       const saved = editing
         ? await updateSubscription(sub.id, payload)
         : await createSubscription(payload)
+      notify('success')
       onSaved(saved)
       close()
     } catch (e) {
+      notify('error')
       setError('Failed to save')
     } finally {
       setLoading(false)

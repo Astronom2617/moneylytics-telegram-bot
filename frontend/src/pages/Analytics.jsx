@@ -7,6 +7,8 @@ import { getStats } from '../api.js'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 import { currencySymbol } from '../currency.js'
 import DatePicker from '../components/DatePicker.jsx'
+import { AnalyticsSkeleton } from '../components/Skeleton.jsx'
+import { selection } from '../haptic.js'
 
 const PERIOD_IDS = ['today', 'week', 'month', 'custom']
 
@@ -137,7 +139,7 @@ export default function Analytics({ user }) {
           <button
             key={id}
             className={`period-tab ${period === id ? 'active' : ''}`}
-            onClick={() => setPeriod(id)}
+            onClick={() => { if (period !== id) selection(); setPeriod(id) }}
           >
             {t(`period.${id}`)}
           </button>
@@ -180,7 +182,7 @@ export default function Analytics({ user }) {
               key={c}
               type="button"
               className={`chip ${activeCur === c ? 'active' : ''}`}
-              onClick={() => setCurrency(c)}
+              onClick={() => { if (activeCur !== c) selection(); setCurrency(c) }}
             >
               {currencySymbol(c)} {c}
             </button>
@@ -189,9 +191,7 @@ export default function Analytics({ user }) {
       )}
 
       {loading || !stats ? (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
-          <div className="spinner" />
-        </div>
+        <AnalyticsSkeleton />
       ) : stats.by_category.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">📊</div>

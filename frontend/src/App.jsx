@@ -5,6 +5,7 @@ import Analytics     from './pages/Analytics.jsx'
 import Settings      from './pages/Settings.jsx'
 import Subscriptions from './pages/Subscriptions.jsx'
 import BottomNav  from './components/BottomNav.jsx'
+import { ToastHost } from './components/Toast.jsx'
 import { authUser, setToken } from './api.js'
 
 const tg = window.Telegram?.WebApp
@@ -76,6 +77,7 @@ export default function App() {
         {pages[page]}
       </div>
       <BottomNav page={page} setPage={setPage} language={user?.language} />
+      <ToastHost />
     </div>
   )
 }

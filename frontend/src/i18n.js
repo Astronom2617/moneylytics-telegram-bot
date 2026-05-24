@@ -89,6 +89,8 @@ const dict = {
     'history.save':               'Save changes',
     'history.saving':             'Saving…',
     'history.currencyLocked':     'Currency is locked',
+    'history.deleted':            'Expense deleted',
+    'history.undo':               'Undo',
 
     // Analytics
     'analytics.noData':           'No data for this period',
@@ -254,6 +256,8 @@ const dict = {
     'history.save':               'Сохранить',
     'history.saving':             'Сохранение…',
     'history.currencyLocked':     'Валюта зафиксирована',
+    'history.deleted':            'Расход удалён',
+    'history.undo':               'Отменить',
 
     'analytics.noData':           'Нет данных за этот период',
     'analytics.byCategory':       'По категориям',
@@ -413,6 +417,8 @@ const dict = {
     'history.save':               'Зберегти',
     'history.saving':             'Збереження…',
     'history.currencyLocked':     'Валюта зафіксована',
+    'history.deleted':            'Витрату видалено',
+    'history.undo':               'Скасувати',
 
     'analytics.noData':           'Немає даних за цей період',
     'analytics.byCategory':       'За категоріями',

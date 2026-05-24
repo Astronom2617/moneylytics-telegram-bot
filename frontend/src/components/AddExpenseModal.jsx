@@ -4,6 +4,7 @@ import { createExpense } from '../api.js'
 import { useTranslation } from '../i18n.js'
 import { CURRENCIES, currencySymbol, normalizeCurrency } from '../currency.js'
 import { CATEGORIES } from '../categories.js'
+import { notify } from '../haptic.js'
 import BottomSheet from './BottomSheet.jsx'
 import DatePicker from './DatePicker.jsx'
 
@@ -47,9 +48,11 @@ export default function AddExpenseModal({ user, onClose, onAdded }) {
         expense_date: date,
         timezone_offset: now.getTimezoneOffset(),
       })
+      notify('success')
       onAdded(expense)
       close()
     } catch (e) {
+      notify('error')
       setError('Failed to save. Try again.')
     } finally {
       setLoading(false)

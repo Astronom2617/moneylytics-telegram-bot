@@ -7,7 +7,9 @@ import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 import { currencySymbol } from '../currency.js'
 import { CATEGORY_EMOJI, capCat } from '../categories.js'
 import SubscriptionModal from '../components/SubscriptionModal.jsx'
+import { ListSkeleton } from '../components/Skeleton.jsx'
 import { useFabCollapse } from '../useFabCollapse.js'
+import { impact, notify } from '../haptic.js'
 
 // Per-month equivalent so the totals card can roll weekly subs into the same
 // "per month" number. 30/7 averages out fine for a single summary line.
@@ -53,21 +55,26 @@ export default function Subscriptions({ user }) {
 
   useEffect(() => { load() }, [load])
 
-  const handleSaved = () => { setEditing(null); setShowModal(false); load() }
+  const handleSaved = () => {
+    notify('success')
+    setEditing(null); setShowModal(false); load()
+  }
 
   const handleDelete = async (sub) => {
     if (!window.confirm(t('subs.confirmDelete'))) return
+    impact('medium')
     try {
       await deleteSubscription(sub.id)
       load()
-    } catch (e) { console.error(e) }
+    } catch (e) { console.error(e); notify('error') }
   }
 
   const handleToggleActive = async (sub) => {
+    impact('light')
     try {
       await updateSubscription(sub.id, { active: !sub.active })
       load()
-    } catch (e) { console.error(e) }
+    } catch (e) { console.error(e); notify('error') }
   }
 
   // Sum monthly-equivalents per currency for the totals card. Paused subs
@@ -85,9 +92,7 @@ export default function Subscriptions({ user }) {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
-          <div className="spinner" />
-        </div>
+        <ListSkeleton rows={4} />
       ) : items.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">🔁</div>
@@ -207,7 +212,7 @@ export default function Subscriptions({ user }) {
 
       <button
         className={`fab-extended${fabCollapsed ? ' collapsed' : ''}`}
-        onClick={() => { setEditing(null); setShowModal(true) }}
+        onClick={() => { impact('light'); setEditing(null); setShowModal(true) }}
         aria-label={t('subs.add')}
       >
         <Plus size={20} />

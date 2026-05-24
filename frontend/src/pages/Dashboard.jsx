@@ -10,6 +10,8 @@ import UserProfileSheet from '../components/UserProfileSheet.jsx'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 import { useFabCollapse } from '../useFabCollapse.js'
 import { CATEGORY_COLORS, CATEGORY_EMOJI, capCat as capCatShared } from '../categories.js'
+import { DashboardSkeleton } from '../components/Skeleton.jsx'
+import { impact } from '../haptic.js'
 
 const TG_PHOTO_URL = window.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url ?? null
 
@@ -417,9 +419,7 @@ export default function Dashboard({ user }) {
       </div>
 
       {loading || !stats ? (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
-          <div className="spinner" />
-        </div>
+        <DashboardSkeleton />
       ) : (
         <>
           <div className="stat-row">
@@ -551,7 +551,7 @@ export default function Dashboard({ user }) {
 
       <button
         className={`fab-extended${fabCollapsed ? ' collapsed' : ''}`}
-        onClick={() => setShowModal(true)}
+        onClick={() => { impact('light'); setShowModal(true) }}
         aria-label={t('dashboard.add')}
       >
         <Plus size={20} />

@@ -1,5 +1,6 @@
 import { LayoutDashboard, History, BarChart2, Settings, Repeat } from 'lucide-react'
 import { useTranslation } from '../i18n.js'
+import { selection } from '../haptic.js'
 
 const TABS = [
   { id: 'dashboard',     tKey: 'nav.home',          Icon: LayoutDashboard },
@@ -63,7 +64,7 @@ export default function BottomNav({ page, setPage, language }) {
       {TABS.map(({ id, tKey, Icon }) => {
         const active = page === id
         return (
-          <button key={id} style={styles.tab(active)} onClick={() => setPage(id)}>
+          <button key={id} style={styles.tab(active)} onClick={() => { if (!active) selection(); setPage(id) }}>
             <span style={styles.indicator(active)} />
             <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
             <span style={styles.label(active)}>{t(tKey)}</span>
