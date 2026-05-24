@@ -50,6 +50,18 @@ export default function Analytics({ user }) {
   const [customFrom, setCustomFrom] = useState(todayYMD())
   const [customTo,   setCustomTo]   = useState(todayYMD())
 
+  // Keep the range non-inverted: picking a From later than To snaps To
+  // forward (and vice versa). Same date on both ends is allowed — that's
+  // a single-day window.
+  const pickFrom = (d) => {
+    setCustomFrom(d)
+    if (d > customTo) setCustomTo(d)
+  }
+  const pickTo = (d) => {
+    setCustomTo(d)
+    if (d < customFrom) setCustomFrom(d)
+  }
+
   const cur = user?.currency ?? 'EUR'
   const lang = user?.language ?? 'en'
   const locale = localeFor(lang)
@@ -141,9 +153,9 @@ export default function Analytics({ user }) {
             }}>{t('period.from')}</p>
             <DatePicker
               value={customFrom}
-              onChange={setCustomFrom}
+              onChange={pickFrom}
               language={lang}
-              maxDate={customTo || todayYMD()}
+              maxDate={todayYMD()}
             />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -153,7 +165,7 @@ export default function Analytics({ user }) {
             }}>{t('period.to')}</p>
             <DatePicker
               value={customTo}
-              onChange={setCustomTo}
+              onChange={pickTo}
               language={lang}
               maxDate={todayYMD()}
             />
