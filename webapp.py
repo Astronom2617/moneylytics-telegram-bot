@@ -17,7 +17,7 @@ from urllib.parse import parse_qsl
 import jwt
 from cryptography.fernet import Fernet, InvalidToken
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -86,6 +86,16 @@ _MONO_OWN_TRANSFER_PHRASES = (
     "між своїми",
     "на свою картку",
     "перевод на карту",
+)
+
+# Markers Monobank uses in the description of a positive-amount transaction to
+# indicate it's a reversal of a prior charge (not income). Compared lower-cased
+# via `in`, so substring matches anywhere in the description.
+_MONO_REFUND_MARKERS = (
+    "повернення",
+    "refund",
+    "возврат",
+    "скасування",
 )
 
 # account id → user id, so the webhook avoids a Monobank API call per delivery.
@@ -270,12 +280,36 @@ def _period_start(period: str):
     return None
 
 
+def _custom_range(from_str: str | None, to_str: str | None):
+    """Parse YYYY-MM-DD bounds for period=custom. Returns (start, end_exclusive)
+    or (None, None) if either side is missing/invalid."""
+    if not from_str or not to_str:
+        return None, None
+    try:
+        start = datetime.strptime(from_str, "%Y-%m-%d")
+        end = datetime.strptime(to_str, "%Y-%m-%d") + timedelta(days=1)
+    except (TypeError, ValueError):
+        return None, None
+    return start, end
+
+
 @app.get("/api/expenses")
-def list_expenses(period: str = "week", user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+def list_expenses(
+    period: str = "week",
+    from_: str | None = Query(default=None, alias="from"),
+    to: str | None = None,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     q = db.query(Expense).filter(Expense.user_id == user_id)
-    since = _period_start(period)
-    if since:
-        q = q.filter(Expense.created_at >= since)
+    if period == "custom":
+        start, end = _custom_range(from_, to)
+        if start and end:
+            q = q.filter(Expense.created_at >= start, Expense.created_at < end)
+    else:
+        since = _period_start(period)
+        if since:
+            q = q.filter(Expense.created_at >= since)
     return [_expense_dict(e) for e in q.order_by(Expense.created_at.desc()).all()]
 
 
@@ -379,7 +413,14 @@ def delete_expense(expense_id: int, user_id: int = Depends(get_current_user_id),
 
 
 @app.get("/api/stats")
-def get_stats(period: str = "week", currency: str | None = None, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+def get_stats(
+    period: str = "week",
+    currency: str | None = None,
+    from_: str | None = Query(default=None, alias="from"),
+    to: str | None = None,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start  = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -396,18 +437,32 @@ def get_stats(period: str = "week", currency: str | None = None, user_id: int = 
             and_(Expense.user_id == user_id, Expense.created_at >= dt)
         ).scalar() or 0
 
-    since = _period_start(period) or month_start
+    # Build the period filter. Custom uses an [from, to+1d) window; the other
+    # presets are an open-ended `created_at >= since` window.
+    custom_start, custom_end = (None, None)
+    if period == "custom":
+        custom_start, custom_end = _custom_range(from_, to)
+    since = None if period == "custom" else (_period_start(period) or month_start)
+
+    def apply_period(q):
+        if period == "custom":
+            if custom_start and custom_end:
+                return q.filter(Expense.created_at >= custom_start,
+                                Expense.created_at < custom_end)
+            return q
+        return q.filter(Expense.created_at >= since)
 
     # Distinct currencies in the period — drives the Analytics currency switcher.
     # Computed before the currency filter so the full set stays visible.
-    cur_rows = db.query(Expense.currency).filter(
-        and_(Expense.user_id == user_id, Expense.created_at >= since)
+    cur_rows = apply_period(
+        db.query(Expense.currency).filter(Expense.user_id == user_id)
     ).distinct().all()
     currencies = sorted({row[0] or "EUR" for row in cur_rows})
 
-    cat_q = db.query(
-        Expense.category, func.sum(Expense.amount).label("total")
-    ).filter(and_(Expense.user_id == user_id, Expense.created_at >= since))
+    cat_q = apply_period(
+        db.query(Expense.category, func.sum(Expense.amount).label("total"))
+          .filter(Expense.user_id == user_id)
+    )
     if currency:
         cat_q = cat_q.filter(Expense.currency == currency)
     by_category = cat_q.group_by(Expense.category).order_by(func.sum(Expense.amount).desc()).all()
@@ -643,8 +698,65 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
         tx_id = item.get("id")
         if amount is None or tx_id is None:
             return {"status": "ignored"}
-        if amount >= 0:  # income / refund — we only track spending
-            return {"status": "skipped"}
+
+        mono_desc_raw = (item.get("description") or "").strip()
+        if amount > 0:
+            desc_l = mono_desc_raw.lower()
+            is_refund = any(m in desc_l for m in _MONO_REFUND_MARKERS)
+            if not is_refund:
+                # Genuine income (salary, top-up, etc) — we only track spending.
+                return {"status": "skipped"}
+
+            # Refund: undo the original charge. Find the user first so we can
+            # scope the search to their expenses.
+            account_id = data.get("account")
+            user = _resolve_mono_user(db, account_id) if account_id else None
+            if not user:
+                logger.info(
+                    "mono webhook reversal: no matching expense found for tx=%s "
+                    "(unknown account)", tx_id,
+                )
+                return {"status": "no_user"}
+
+            # Monobank sometimes references the original tx id explicitly.
+            original_tx = (
+                item.get("originalTxId")
+                or item.get("originalTxID")
+                or item.get("counterTxId")
+            )
+            target = None
+            if original_tx:
+                target = db.query(Expense).filter(
+                    and_(Expense.user_id == user.id,
+                         Expense.mono_tx_id == str(original_tx))
+                ).first()
+            if target is None:
+                # Fall back to matching by amount within the last 30 days.
+                refund_amount = abs(amount) / 100
+                cutoff = datetime.utcnow() - timedelta(days=30)
+                target = db.query(Expense).filter(
+                    and_(
+                        Expense.user_id == user.id,
+                        Expense.amount == refund_amount,
+                        Expense.created_at >= cutoff,
+                        Expense.mono_tx_id.isnot(None),
+                    )
+                ).order_by(Expense.created_at.desc()).first()
+
+            if target is None:
+                logger.info(
+                    "mono webhook reversal: no matching expense found for tx=%s",
+                    tx_id,
+                )
+                return {"status": "reversal_no_match"}
+
+            logger.info(
+                "mono webhook reversal: deleted expense id=%s tx=%s",
+                target.id, tx_id,
+            )
+            db.delete(target)
+            db.commit()
+            return {"status": "reversal"}
 
         if db.query(Expense.id).filter(Expense.mono_tx_id == str(tx_id)).first():
             return {"status": "duplicate"}
@@ -695,7 +807,21 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
             logger.info("mono webhook tx=%s skipped: own transfer", tx_id)
             return {"status": "own_transfer"}
 
-        currency = MONO_CURRENCY.get(item.get("currencyCode"), "UAH")
+        # Monobank sends two currency fields: `currencyCode` is the account's
+        # currency and `amount` is the charge in that currency; for foreign
+        # purchases `operationCurrencyCode` + `operationAmount` carry the
+        # original currency of the transaction. Prefer the operation currency
+        # when it differs so a USD purchase shows up as USD, not UAH.
+        currency_code = item.get("currencyCode")
+        op_currency_code = item.get("operationCurrencyCode")
+        op_amount = item.get("operationAmount")
+        if (op_currency_code and op_amount is not None
+                and op_currency_code != currency_code):
+            expense_amount = abs(op_amount) / 100
+            currency = MONO_CURRENCY.get(op_currency_code, "UAH")
+        else:
+            expense_amount = abs(amount) / 100
+            currency = MONO_CURRENCY.get(currency_code, "UAH")
         # Monobank's `time` is a unix timestamp in UTC — keep it naive UTC.
         created_at = datetime.utcfromtimestamp(item.get("time")) if item.get("time") else datetime.utcnow()
         # The expense description is always the user-written `comment` when
@@ -714,7 +840,7 @@ def mono_webhook(body: dict, db: Session = Depends(get_db)):
 
         expense = Expense(
             user_id=user.id,
-            amount=abs(amount) / 100,
+            amount=expense_amount,
             category=category,
             currency=currency,
             description=description,

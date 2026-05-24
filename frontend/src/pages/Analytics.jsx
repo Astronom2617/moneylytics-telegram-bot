@@ -6,8 +6,15 @@ import {
 import { getStats } from '../api.js'
 import { useTranslation, translateCategory, localeFor } from '../i18n.js'
 import { currencySymbol } from '../currency.js'
+import DatePicker from '../components/DatePicker.jsx'
 
-const PERIOD_IDS = ['today', 'week', 'month']
+const PERIOD_IDS = ['today', 'week', 'month', 'custom']
+
+const todayYMD = () => {
+  const d = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
 
 // Picked to stay readable on both light and dark Telegram themes
 const COLORS = [
@@ -40,6 +47,8 @@ export default function Analytics({ user }) {
   const [currency, setCurrency] = useState(null)
   const [stats,    setStats]    = useState(null)
   const [loading,  setLoading]  = useState(true)
+  const [customFrom, setCustomFrom] = useState(todayYMD())
+  const [customTo,   setCustomTo]   = useState(todayYMD())
 
   const cur = user?.currency ?? 'EUR'
   const lang = user?.language ?? 'en'
@@ -61,13 +70,25 @@ export default function Analytics({ user }) {
   const dailyData = (stats?.daily_last_7 || []).map((d) => ({ ...d, label: formatDay(d.date) }))
   const categoryTotal = (stats?.by_category || []).reduce((s, x) => s + x.total, 0)
 
+  // Custom range is sent only when both endpoints exist and from <= to;
+  // otherwise the backend treats period=custom with no bounds as "no data".
+  const customRange = period === 'custom' && customFrom && customTo && customFrom <= customTo
+    ? { from: customFrom, to: customTo }
+    : null
+
   const load = useCallback(() => {
+    if (period === 'custom' && !customRange) {
+      setStats(null)
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    getStats(period, currency || undefined)
+    getStats(period, currency || undefined, customRange)
       .then(setStats)
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [period, currency])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, currency, customFrom, customTo])
 
   useEffect(() => { load() }, [load])
 
@@ -110,6 +131,35 @@ export default function Analytics({ user }) {
           </button>
         ))}
       </div>
+
+      {period === 'custom' && (
+        <div className="card" style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{
+              fontSize: 11, color: 'var(--tg-theme-hint-color)',
+              textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6,
+            }}>{t('period.from')}</p>
+            <DatePicker
+              value={customFrom}
+              onChange={setCustomFrom}
+              language={lang}
+              maxDate={customTo || todayYMD()}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{
+              fontSize: 11, color: 'var(--tg-theme-hint-color)',
+              textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6,
+            }}>{t('period.to')}</p>
+            <DatePicker
+              value={customTo}
+              onChange={setCustomTo}
+              language={lang}
+              maxDate={todayYMD()}
+            />
+          </div>
+        </div>
+      )}
 
       {hasSwitcher && (
         <div className="chips currency-switch">

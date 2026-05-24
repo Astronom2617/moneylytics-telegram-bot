@@ -19,10 +19,13 @@ const dict = {
     'greeting.evening':   'Good evening',
 
     // Periods
-    'period.today': 'Today',
-    'period.week':  'Week',
-    'period.month': 'Month',
-    'period.all':   'All',
+    'period.today':  'Today',
+    'period.week':   'Week',
+    'period.month':  'Month',
+    'period.all':    'All',
+    'period.custom': 'Custom',
+    'period.from':   'From',
+    'period.to':     'To',
 
     // Dashboard
     'dashboard.today':            'TODAY',
@@ -156,10 +159,13 @@ const dict = {
     'greeting.afternoon': 'Добрый день',
     'greeting.evening':   'Добрый вечер',
 
-    'period.today': 'Сегодня',
-    'period.week':  'Неделя',
-    'period.month': 'Месяц',
-    'period.all':   'Всё',
+    'period.today':  'Сегодня',
+    'period.week':   'Неделя',
+    'period.month':  'Месяц',
+    'period.all':    'Всё',
+    'period.custom': 'Период',
+    'period.from':   'С',
+    'period.to':     'По',
 
     'dashboard.today':            'СЕГОДНЯ',
     'dashboard.thisWeek':         'ЭТА НЕДЕЛЯ',
@@ -285,10 +291,13 @@ const dict = {
     'greeting.afternoon': 'Доброго дня',
     'greeting.evening':   'Доброго вечора',
 
-    'period.today': 'Сьогодні',
-    'period.week':  'Тиждень',
-    'period.month': 'Місяць',
-    'period.all':   'Усі',
+    'period.today':  'Сьогодні',
+    'period.week':   'Тиждень',
+    'period.month':  'Місяць',
+    'period.all':    'Усі',
+    'period.custom': 'Період',
+    'period.from':   'З',
+    'period.to':     'По',
 
     'dashboard.today':            'СЬОГОДНІ',
     'dashboard.thisWeek':         'ЦЕЙ ТИЖДЕНЬ',
